@@ -1,0 +1,149 @@
+@layer theme, base, primeng, components, utilities;
+
+@import 'tailwindcss';
+@import 'primeicons/primeicons.css';
+
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+
+:root {
+  --app-canvas: #fdf6f1;
+  --app-card: #ffffff;
+  --app-card-muted: #fcefe6;
+  --app-ink: #1f1330;
+  --app-ink-muted: #6f6480;
+  --app-line: #f1e5dc;
+  --app-brand: #5b2a91;
+  --app-brand-soft: #efe6fa;
+  --app-brand-deep: #3a1466;
+  --app-on-brand: #ffffff;
+  --app-accent: #f7931e;
+  --app-accent-soft: #fff0de;
+  --app-shadow: 0 8px 28px -14px rgb(58 20 102 / 0.28);
+}
+
+.app-dark {
+  --app-canvas: #120c1a;
+  --app-card: #1e1529;
+  --app-card-muted: #2a1f38;
+  --app-ink: #f4eefb;
+  --app-ink-muted: #a99bbd;
+  --app-line: #33264a;
+  --app-brand: #b58cf0;
+  --app-brand-soft: #2e2044;
+  --app-brand-deep: #1a0f2b;
+  --app-on-brand: #1a0f2b;
+  --app-accent: #ff9a2e;
+  --app-accent-soft: #3d2714;
+  --app-shadow: 0 8px 28px -14px rgb(0 0 0 / 0.7);
+}
+
+@theme inline {
+  --font-sans: 'Prompt', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Kanit', 'Prompt', sans-serif;
+  --color-canvas: var(--app-canvas);
+  --color-card: var(--app-card);
+  --color-card-muted: var(--app-card-muted);
+  --color-ink: var(--app-ink);
+  --color-ink-muted: var(--app-ink-muted);
+  --color-line: var(--app-line);
+  --color-brand: var(--app-brand);
+  --color-brand-soft: var(--app-brand-soft);
+  --color-brand-deep: var(--app-brand-deep);
+  --color-on-brand: var(--app-on-brand);
+  --color-accent: var(--app-accent);
+  --color-accent-soft: var(--app-accent-soft);
+  --shadow-soft: var(--app-shadow);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@utility animate-float {
+  animation: float-y 4s ease-in-out infinite;
+}
+
+@utility animate-pop {
+  animation: pop-in 0.25s ease-out;
+}
+
+@utility bg-royal {
+  background-image: linear-gradient(135deg, #2c0f52 0%, #4a1d80 50%, #6e35b8 100%);
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleX(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0.4;
+  }
+}
+
+@utility animate-loading-bar {
+  animation: loading-bar 1.2s ease-out infinite;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+}
+
+.menu-danger .p-menu-item-content,
+.menu-danger .p-menu-item-icon,
+.menu-danger .p-menu-item-label {
+  color: #ef4444 !important;
+}
+
+.menu-danger .p-menu-item-content:hover {
+  background: rgb(239 68 68 / 0.1) !important;
+}
