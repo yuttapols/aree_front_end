@@ -16,7 +16,13 @@ import { FormField } from '../../../shared/components/form-field/form-field';
 import { Panel } from '../../../shared/components/panel/panel';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ConfirmService } from '../../../shared/services/confirm.service';
-import { requiredText, shouldShowError, validationMessage } from '../../../shared/utils/validators';
+import {
+  requiredText,
+  shouldShowError,
+  textField,
+  validationMessage,
+} from '../../../shared/utils/validators';
+import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
 
 const ICONS = [
   'pi pi-heart',
@@ -79,7 +85,7 @@ const ICONS = [
               </td>
               <td class="text-ink-muted">{{ row.slug }}</td>
               <td class="text-right">{{ row.productCount }}</td>
-              <td><app-status-tag kind="active" [value]="row.isActive" /></td>
+              <td><app-status-tag kind="active" [value]="row.active" /></td>
               <td class="text-right">
                 <p-button
                   icon="pi pi-pencil"
@@ -88,7 +94,7 @@ const ICONS = [
                   [ariaLabel]="i18n.t('common.edit')"
                   (onClick)="edit(row)"
                 />
-                @if (row.isActive) {
+                @if (row.active) {
                   <p-button
                     icon="pi pi-trash"
                     severity="danger"
@@ -180,7 +186,7 @@ const ICONS = [
           </div>
         </div>
         <label class="text-ink flex items-center gap-3 text-sm sm:col-span-2">
-          <p-toggleswitch formControlName="isActive" /> {{ i18n.t('status.active.true') }}
+          <p-toggleswitch formControlName="active" /> {{ i18n.t('status.active.true') }}
         </label>
         <div class="flex justify-end gap-2 sm:col-span-2">
           <p-button
@@ -215,12 +221,19 @@ export class CategoriesPage {
   protected readonly submitted = signal(false);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    name: ['', [requiredText]],
-    nameEn: [''],
-    slug: ['', [Validators.required, Validators.pattern(/^[a-z0-9-]+$/)]],
-    description: [''],
+    name: ['', textField(TEXT_LIMITS.categoryName, true)],
+    nameEn: ['', textField(TEXT_LIMITS.categoryName)],
+    slug: [
+      '',
+      [
+        Validators.required,
+        Validators.maxLength(TEXT_LIMITS.code * 2),
+        Validators.pattern(/^[a-z0-9-]+$/),
+      ],
+    ],
+    description: ['', textField(TEXT_LIMITS.description)],
     icon: ['pi pi-star'],
-    isActive: [true],
+    active: [true],
   });
 
   constructor() {
@@ -246,7 +259,7 @@ export class CategoriesPage {
       slug: category?.slug ?? '',
       description: category?.description ?? '',
       icon: category?.icon ?? 'pi pi-star',
-      isActive: category?.isActive ?? true,
+      active: category?.active ?? true,
     });
     this.dialogOpen.set(true);
   }

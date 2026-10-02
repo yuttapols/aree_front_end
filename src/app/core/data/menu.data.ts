@@ -17,7 +17,6 @@ export const HERO_SLIDES: HeroSlide[] = [
       th: 'เมนูโปรดของคุณ ทำใหม่ทุกออเดอร์',
       en: 'Your favorites, made fresh every order',
     },
-    itemCodes: ['BANANA-MILK', 'NUTELLA', 'THAI-TEA'],
   },
   {
     id: 'savory',
@@ -28,7 +27,6 @@ export const HERO_SLIDES: HeroSlide[] = [
       th: 'สายคาวห้ามพลาด เสิร์ฟร้อน ๆ จากกระทะ',
       en: 'Savory lovers, served hot off the pan',
     },
-    itemCodes: ['MASSAMAN', 'MURTABAK', 'TEH-TARIK'],
   },
   {
     id: 'drinks',
@@ -39,6 +37,5 @@ export const HERO_SLIDES: HeroSlide[] = [
       th: 'สั่งคู่โรตีสุดคุ้ม เลือกความหวานได้',
       en: 'Pair it with any roti, sweetness your way',
     },
-    itemCodes: ['THAI-TEA', 'THAI-TEA-ROTI', 'COCOA'],
   },
 ];

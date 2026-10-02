@@ -27,6 +27,8 @@ export class MenuFilterService {
     () => this.query().trim() !== '' || this.sort() !== 'recommended' || this.hideSoldOut(),
   );
 
+  readonly catalogEmpty = computed(() => this.catalog.items().length === 0);
+
   readonly items = computed(() => {
     const category = this.category();
     const query = this.query().trim().toLowerCase();

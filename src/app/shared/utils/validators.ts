@@ -1,6 +1,12 @@
-import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 
 import { I18nService } from '../../core/i18n/i18n.service';
+import {
+  containsControlCharacters,
+  containsMarkup,
+  isPaymentMethodCode,
+  isProductCode,
+} from './sanitize';
 
 const THAI_PHONE_PATTERN = /^0\d{9}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,6 +24,14 @@ export function thaiPhone(control: AbstractControl): ValidationErrors | null {
   return !value || THAI_PHONE_PATTERN.test(value) ? null : { thaiPhone: true };
 }
 
+export function passwordComplexity(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '');
+  if (!value) {
+    return null;
+  }
+  return /[A-Za-z]/.test(value) && /\d/.test(value) ? null : { passwordComplexity: true };
+}
+
 export function optionalEmail(control: AbstractControl): ValidationErrors | null {
   const value = String(control.value ?? '').trim();
   return !value || EMAIL_PATTERN.test(value) ? null : { email: true };
@@ -31,6 +45,29 @@ export function phoneOrEmail(control: AbstractControl): ValidationErrors | null 
   return EMAIL_PATTERN.test(value) || THAI_PHONE_PATTERN.test(digitsOnly(value))
     ? null
     : { username: true };
+}
+
+export function safeText(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '');
+  if (!value) {
+    return null;
+  }
+  return containsMarkup(value) || containsControlCharacters(value) ? { unsafeText: true } : null;
+}
+
+export function textField(maxLength: number, required = false): ValidatorFn[] {
+  const validators: ValidatorFn[] = [Validators.maxLength(maxLength), safeText];
+  return required ? [requiredText, ...validators] : validators;
+}
+
+export function productCode(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  return !value || isProductCode(value.toUpperCase()) ? null : { codeFormat: true };
+}
+
+export function paymentMethodCode(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  return !value || isPaymentMethodCode(value.toUpperCase()) ? null : { codeFormat: true };
 }
 
 export function matchField(source: string, target: string): ValidatorFn {
@@ -48,6 +85,9 @@ export function validationMessage(control: AbstractControl, i18n: I18nService): 
   if (control.hasError('minlength')) {
     return i18n.t('validation.minLength', { n: control.getError('minlength').requiredLength });
   }
+  if (control.hasError('maxlength')) {
+    return i18n.t('validation.maxLength', { n: control.getError('maxlength').requiredLength });
+  }
   if (control.hasError('min')) {
     return i18n.t('validation.min', { n: control.getError('min').min });
   }
@@ -62,6 +102,18 @@ export function validationMessage(control: AbstractControl, i18n: I18nService): 
   }
   if (control.hasError('username')) {
     return i18n.t('validation.username');
+  }
+  if (control.hasError('passwordComplexity')) {
+    return i18n.t('validation.passwordComplexity');
+  }
+  if (control.hasError('unsafeText')) {
+    return i18n.t('validation.unsafeText');
+  }
+  if (control.hasError('codeFormat')) {
+    return i18n.t('validation.codeFormat');
+  }
+  if (control.hasError('pattern')) {
+    return i18n.t('validation.pattern');
   }
   if (control.hasError('server')) {
     return String(control.getError('server'));

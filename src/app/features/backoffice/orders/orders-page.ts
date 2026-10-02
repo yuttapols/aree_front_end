@@ -174,7 +174,7 @@ export class OrdersPage {
     {
       key: 'customerName',
       label: this.i18n.t('bo.orders.customer'),
-      value: (row) => row.customerName ?? this.i18n.t('bo.walkInGuest'),
+      value: (row) => row.customer?.nickname ?? row.guestName ?? this.i18n.t('bo.walkInGuest'),
     },
     { key: 'channel', label: this.i18n.t('bo.orders.channel'), custom: true },
     {

@@ -30,6 +30,8 @@ import { ImageUpload } from '../../shared/components/image-upload/image-upload';
 import { OrderSummary } from '../../shared/components/order-summary/order-summary';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Panel } from '../../shared/components/panel/panel';
+import { ShopStatus } from '../../shared/components/shop-status/shop-status';
+import { ProgressStep, StepProgress } from '../../shared/components/step-progress/step-progress';
 import { PaymentMethodPicker } from '../../shared/components/payment-method-picker/payment-method-picker';
 import { PhoneInput } from '../../shared/components/phone-input/phone-input';
 import { PointRedeem } from '../../shared/components/point-redeem/point-redeem';
@@ -41,13 +43,17 @@ import { cartSummaryLines } from '../../shared/utils/order-lines';
 import {
   requiredText,
   shouldShowError,
+  textField,
   thaiPhone,
   validationMessage,
 } from '../../shared/utils/validators';
+import { TEXT_LIMITS, cleanOptionalText, cleanText } from '../../shared/utils/sanitize';
 
 @Component({
   selector: 'app-checkout-page',
   imports: [
+    ShopStatus,
+    StepProgress,
     FormsModule,
     ReactiveFormsModule,
     RouterLink,
@@ -87,14 +93,16 @@ import {
           </app-empty-state>
         </div>
       } @else {
-        @if (shop.info()?.acceptOnlineOrder === false) {
-          <p class="mb-5 rounded-2xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500">
-            <i class="pi pi-ban mr-2"></i>{{ i18n.error('SHOP_CLOSED') }}
-          </p>
+        @if (!shop.acceptingOrders()) {
+          <app-shop-status class="mb-5" />
         }
+        <app-step-progress class="mb-5" [steps]="steps()" />
         <div class="grid items-start gap-5 lg:grid-cols-[1fr_24rem]">
           <div class="flex flex-col gap-5">
-            <app-panel [heading]="i18n.t('checkout.items', { n: cart.count() })">
+            <app-panel
+              icon="pi pi-shopping-bag"
+              [heading]="i18n.t('checkout.items', { n: cart.count() })"
+            >
               <a
                 panelActions
                 routerLink="/"
@@ -125,7 +133,7 @@ import {
               </ul>
             </app-panel>
 
-            <app-panel [heading]="i18n.t('checkout.customer')">
+            <app-panel icon="pi pi-user" [heading]="i18n.t('checkout.customer')">
               @if (auth.isCustomer() && auth.user(); as user) {
                 <div
                   class="bg-brand-soft mb-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
@@ -173,7 +181,7 @@ import {
                 @if (!auth.isCustomer()) {
                   <app-form-field
                     inputId="checkout-phone"
-                    [label]="i18n.t('register.phone') + ' *'"
+                    [label]="i18n.t('register.phone')"
                     [error]="errorFor('phone')"
                   >
                     <app-phone-input
@@ -200,7 +208,7 @@ import {
               </form>
             </app-panel>
 
-            <app-panel [heading]="i18n.t('checkout.payment')">
+            <app-panel icon="pi pi-wallet" [heading]="i18n.t('checkout.payment')">
               <app-payment-method-picker
                 [methods]="paymentMethods()"
                 [amount]="quote()?.totalAmount ?? cart.subtotal()"
@@ -212,7 +220,8 @@ import {
                   <app-image-upload
                     mode="inline"
                     [url]="slipUrl()"
-                    (urlChange)="slipUrl.set($event)"
+                    (urlChange)="onSlipUrlChange($event)"
+                    (fileChange)="slipFile.set($event)"
                   />
                   <p class="text-ink-muted mt-2 text-xs">{{ i18n.t('checkout.slipLater') }}</p>
                 </div>
@@ -221,7 +230,7 @@ import {
           </div>
 
           <div class="flex flex-col gap-5 lg:sticky lg:top-24">
-            <app-panel [heading]="i18n.t('checkout.discounts')">
+            <app-panel icon="pi pi-ticket" [heading]="i18n.t('checkout.discounts')">
               <app-promo-code-input
                 [appliedCode]="promoCode()"
                 [error]="quote()?.promoCodeError ?? null"
@@ -242,7 +251,7 @@ import {
               }
             </app-panel>
 
-            <app-panel [heading]="i18n.t('checkout.summary')">
+            <app-panel icon="pi pi-receipt" [heading]="i18n.t('checkout.summary')">
               <app-order-summary
                 [showLines]="false"
                 [subtotal]="quote()?.subtotal ?? cart.subtotal()"
@@ -261,7 +270,7 @@ import {
                 size="large"
                 [fluid]="true"
                 [loading]="placing()"
-                [disabled]="!paymentMethod() || shop.info()?.acceptOnlineOrder === false"
+                [disabled]="!paymentMethod() || !shop.acceptingOrders()"
                 (onClick)="confirm()"
               />
               <a
@@ -302,12 +311,28 @@ export class CheckoutPage {
   protected readonly redeemPoints = signal(0);
   protected readonly paymentMethod = signal<string | null>(null);
   protected readonly slipUrl = signal<string | null>(null);
+  protected readonly slipFile = signal<File | null>(null);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    name: [this.auth.user()?.nickname ?? '', [requiredText]],
-    phone: ['', [Validators.required, thaiPhone]],
-    note: [''],
+    name: [this.auth.user()?.nickname ?? '', textField(TEXT_LIMITS.personName, true)],
+    phone: ['', [Validators.maxLength(TEXT_LIMITS.phone), thaiPhone]],
+    note: ['', textField(TEXT_LIMITS.note)],
   });
+
+  private readonly formValid = toSignal(
+    this.form.statusChanges.pipe(map((status) => status === 'VALID')),
+    { initialValue: this.form.valid },
+  );
+
+  protected readonly steps = computed<ProgressStep[]>(() => [
+    {
+      label: this.i18n.t('checkout.stepItems'),
+      icon: 'pi pi-shopping-bag',
+      done: !this.cart.isEmpty(),
+    },
+    { label: this.i18n.t('checkout.customer'), icon: 'pi pi-user', done: this.formValid() },
+    { label: this.i18n.t('checkout.payment'), icon: 'pi pi-wallet', done: !!this.paymentMethod() },
+  ]);
 
   protected readonly paymentMethods = toSignal(
     this.orderApi.paymentMethods('ONLINE').pipe(catchError(() => of([]))),
@@ -374,6 +399,13 @@ export class CheckoutPage {
     });
   }
 
+  protected onSlipUrlChange(url: string | null): void {
+    this.slipUrl.set(url);
+    if (!url) {
+      this.slipFile.set(null);
+    }
+  }
+
   protected extras(key: string): string {
     return (
       this.lines().find((line) => line.key === key)?.extras || this.i18n.t('checkout.noExtras')
@@ -408,16 +440,16 @@ export class CheckoutPage {
     this.orderApi
       .createOnline({
         items: this.cart.requestItems(),
-        guestName: value.name.trim(),
+        guestName: cleanText(value.name, TEXT_LIMITS.personName),
         guestPhone: this.auth.isCustomer() ? null : value.phone,
-        note: value.note.trim() || null,
+        note: cleanOptionalText(value.note, TEXT_LIMITS.note),
         paymentMethodCode: method,
         promoCode: quote?.promoCodeError ? null : this.promoCode(),
         redeemPoints: this.redeemPoints() || null,
       })
       .pipe(
         switchMap((order) => {
-          const slip = this.slipUrl();
+          const slip = this.slipFile();
           if (!slip || !this.requiresSlip()) {
             return of(order);
           }
@@ -425,7 +457,7 @@ export class CheckoutPage {
             .attachSlip(order.trackingToken, {
               methodCode: method,
               amount: order.totalAmount,
-              slipUrl: slip,
+              slip,
             })
             .pipe(
               map(() => order),

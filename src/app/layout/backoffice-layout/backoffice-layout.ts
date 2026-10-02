@@ -47,6 +47,7 @@ const STAFF_ITEMS: SideNavItem[] = [
     labelKey: 'bo.nav.payments',
     icon: 'pi pi-wallet',
     link: '/backoffice/payments/pending',
+    hidden: true,
   },
   {
     id: 'customers',

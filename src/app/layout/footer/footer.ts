@@ -41,12 +41,10 @@ import { BrandLogo } from '../../shared/components/brand-logo/brand-logo';
               <span
                 class="rounded-full px-2 py-0.5 text-[0.7rem] font-bold"
                 [class]="
-                  info.isOpenNow
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-white/10 text-white/60'
+                  info.openNow ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white/60'
                 "
               >
-                {{ i18n.t(info.isOpenNow ? 'contact.openNow' : 'contact.closedNow') }}
+                {{ i18n.t(info.openNow ? 'contact.openNow' : 'contact.closedNow') }}
               </span>
             }
           </p>

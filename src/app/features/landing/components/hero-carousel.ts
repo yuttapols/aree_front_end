@@ -29,6 +29,16 @@ interface Slide {
 }
 
 const AUTOPLAY_MS = 5000;
+const HERO_PLATE_COUNT = 3;
+
+function rotate<T>(items: T[], offset: number): T[] {
+  if (!items.length) {
+    return items;
+  }
+  const start = offset % items.length;
+  return [...items.slice(start), ...items.slice(0, start)];
+}
+const AUTOPLAY_TICK_MS = 100;
 const SWIPE_THRESHOLD = 40;
 
 @Component({
@@ -114,18 +124,47 @@ const SWIPE_THRESHOLD = 40;
         }
       </div>
 
-      <div class="absolute inset-x-0 bottom-4 flex justify-center gap-2 md:bottom-6">
-        @for (slide of slides(); track slide.id; let i = $index) {
+      @if (slides().length > 1) {
+        <div class="absolute inset-x-0 bottom-4 flex justify-center gap-2 md:bottom-6">
+          @for (slide of slides(); track slide.id; let i = $index) {
+            <button
+              type="button"
+              class="relative h-2 overflow-hidden rounded-full bg-white/30 transition-all duration-300 hover:bg-white/50"
+              [class]="i === index() ? 'w-10' : 'w-2'"
+              [attr.aria-label]="i18n.t('hero.slide', { n: i + 1 })"
+              [attr.aria-current]="i === index()"
+              (click)="goTo(i)"
+            >
+              @if (i === index()) {
+                <span
+                  class="absolute inset-0 rounded-full bg-white"
+                  [class.animate-fill-x]="autoplay"
+                  [style.--fill-duration]="autoplayMs + 'ms'"
+                  [style.animation-play-state]="paused() ? 'paused' : 'running'"
+                ></span>
+              }
+            </button>
+          }
+        </div>
+        <div class="absolute right-4 bottom-3 hidden gap-2 md:right-6 md:bottom-5 md:flex">
           <button
             type="button"
-            class="h-2 rounded-full transition-all duration-300"
-            [class]="i === index() ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70'"
-            [attr.aria-label]="i18n.t('hero.slide', { n: i + 1 })"
-            [attr.aria-current]="i === index()"
-            (click)="goTo(i)"
-          ></button>
-        }
-      </div>
+            class="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-white/10 backdrop-blur transition hover:bg-white/25 active:scale-90"
+            [attr.aria-label]="i18n.t('hero.prev')"
+            (click)="step(-1)"
+          >
+            <i class="pi pi-chevron-left text-sm"></i>
+          </button>
+          <button
+            type="button"
+            class="grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-white/10 backdrop-blur transition hover:bg-white/25 active:scale-90"
+            [attr.aria-label]="i18n.t('hero.next')"
+            (click)="step(1)"
+          >
+            <i class="pi pi-chevron-right text-sm"></i>
+          </button>
+        </div>
+      }
     </section>
   `,
 })
@@ -135,6 +174,9 @@ export class HeroCarousel {
   private readonly catalog = inject(CatalogStore);
 
   protected readonly index = signal(0);
+  protected readonly autoplayMs = AUTOPLAY_MS;
+  protected autoplay = false;
+  private elapsedMs = 0;
   protected readonly paused = signal(false);
   private touchStartX = 0;
 
@@ -158,15 +200,14 @@ export class HeroCarousel {
           cta: this.i18n.t('hero.promoCta'),
         };
       });
-    const brandSlides = HERO_SLIDES.map<Slide>((slide) => ({
+    const featured = recommended.length ? recommended : this.catalog.items();
+    const brandSlides = HERO_SLIDES.map<Slide>((slide, slideIndex) => ({
       id: slide.id,
       lineOne: this.i18n.text(slide.lineOne),
       lineTwo: this.i18n.text(slide.lineTwo),
       highlight: this.i18n.text(slide.highlight),
       subtitle: this.i18n.text(slide.subtitle),
-      items: slide.itemCodes
-        .map((code) => this.catalog.byCode(code))
-        .filter((item): item is MenuItem => item !== undefined),
+      items: rotate(featured, slideIndex * HERO_PLATE_COUNT).slice(0, HERO_PLATE_COUNT),
       link: '/',
       fragment: 'menu',
       cta: this.i18n.t('hero.cta'),
@@ -179,16 +220,22 @@ export class HeroCarousel {
       '(prefers-reduced-motion: reduce)',
     ).matches;
     if (!reduceMotion) {
+      this.autoplay = true;
       const timer = setInterval(() => {
-        if (!this.paused()) {
+        if (this.paused()) {
+          return;
+        }
+        this.elapsedMs += AUTOPLAY_TICK_MS;
+        if (this.elapsedMs >= AUTOPLAY_MS) {
           this.step(1);
         }
-      }, AUTOPLAY_MS);
+      }, AUTOPLAY_TICK_MS);
       inject(DestroyRef).onDestroy(() => clearInterval(timer));
     }
   }
 
   protected goTo(index: number): void {
+    this.elapsedMs = 0;
     this.index.set(index);
   }
 
@@ -205,7 +252,8 @@ export class HeroCarousel {
     this.paused.set(false);
   }
 
-  private step(direction: number): void {
+  protected step(direction: number): void {
+    this.elapsedMs = 0;
     const total = Math.max(1, this.slides().length);
     this.index.update((index) => (index + direction + total) % total);
   }

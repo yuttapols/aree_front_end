@@ -18,6 +18,7 @@ import { PasswordInput } from '../../shared/components/password-input/password-i
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { readJson, removeStorage, writeJson } from '../../shared/utils/storage';
 import { phoneOrEmail, validationMessage } from '../../shared/utils/validators';
+import { TEXT_LIMITS, safeInternalPath } from '../../shared/utils/sanitize';
 
 const REMEMBERED_ACCOUNT_KEY = 'roti.login.remembered';
 
@@ -150,8 +151,11 @@ export class LoginPage {
   private readonly rememberedAccount = readRememberedAccount();
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    username: [this.rememberedAccount ?? '', [Validators.required, phoneOrEmail]],
-    password: ['', Validators.required],
+    username: [
+      this.rememberedAccount ?? '',
+      [Validators.required, Validators.maxLength(TEXT_LIMITS.email), phoneOrEmail],
+    ],
+    password: ['', [Validators.required, Validators.maxLength(TEXT_LIMITS.password)]],
     remember: [this.rememberedAccount !== null],
   });
 
@@ -189,9 +193,7 @@ export class LoginPage {
             summary: this.i18n.t('login.success'),
             detail: this.i18n.t('register.welcome', { name: user.nickname }),
           });
-          const target = this.returnUrl()?.startsWith('/')
-            ? this.returnUrl()!
-            : this.auth.landingPathFor(user.role);
+          const target = safeInternalPath(this.returnUrl(), this.auth.landingPathFor(user.role));
           this.router.navigateByUrl(target);
         },
         error: (error: ApiException) => this.credentialError.set(this.i18n.error(error.code)),

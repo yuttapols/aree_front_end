@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, forkJoin, of } from 'rxjs';
+import { Observable, catchError, finalize, forkJoin, map, of, shareReplay, tap } from 'rxjs';
 
 import { PromotionResponse } from '../api/models/loyalty.model';
 import { CatalogApi } from '../api/services/catalog.api';
@@ -21,6 +21,8 @@ export class CatalogStore {
   readonly itemsById = computed(() => new Map(this.items().map((item) => [item.id, item])));
   readonly itemsByCode = computed(() => new Map(this.items().map((item) => [item.code, item])));
 
+  private readonly optionRequests = new Map<string, Observable<MenuItem>>();
+
   load(force = false): void {
     if ((this.loaded() && !force) || this.loading()) {
       return;
@@ -31,18 +33,53 @@ export class CatalogStore {
       promotions: this.promotionApi.publicList().pipe(catchError(() => of([]))),
     }).subscribe({
       next: ({ menu, promotions }) => {
-        this.categories.set(menu.categories.map(toMenuCategory));
+        const sections = Array.isArray(menu) ? menu : [];
+        this.categories.set(sections.map((section) => toMenuCategory(section.category)));
         this.items.set(
-          menu.categories.flatMap((category) =>
-            category.products.map((product) => toMenuItem(product, category.slug)),
+          sections.flatMap((section) =>
+            section.products.map((product) => toMenuItem(product, section.category.slug)),
           ),
         );
         this.promotions.set(promotions);
         this.loaded.set(true);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.loaded.set(true);
+        this.loading.set(false);
+      },
     });
+  }
+
+  withOptions(item: MenuItem): Observable<MenuItem> {
+    if (item.optionsLoaded) {
+      return of(item);
+    }
+    let request = this.optionRequests.get(item.id);
+    if (!request) {
+      request = this.catalogApi.publicProduct(item.productId).pipe(
+        map((detail) => toMenuItem(detail, item.categoryId, item.promotionIds)),
+        tap((detailed) => this.replaceItem(detailed)),
+        finalize(() => this.optionRequests.delete(item.id)),
+        shareReplay(1),
+      );
+      this.optionRequests.set(item.id, request);
+    }
+    return request;
+  }
+
+  loadOptionsFor(itemIds: string[]): Observable<unknown> {
+    const pending = itemIds
+      .map((id) => this.byId(id))
+      .filter((item): item is MenuItem => !!item && !item.optionsLoaded);
+    if (!pending.length) {
+      return of(null);
+    }
+    return forkJoin(pending.map((item) => this.withOptions(item).pipe(catchError(() => of(item)))));
+  }
+
+  private replaceItem(detailed: MenuItem): void {
+    this.items.update((items) => items.map((item) => (item.id === detailed.id ? detailed : item)));
   }
 
   refresh(): void {

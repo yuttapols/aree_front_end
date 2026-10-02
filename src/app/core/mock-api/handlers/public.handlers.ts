@@ -1,12 +1,8 @@
 import { FieldError } from '../../api/models/common.model';
 import { PromotionValidateRequest } from '../../api/models/loyalty.model';
-import {
-  AttachSlipRequest,
-  CreateOnlineOrderRequest,
-  OrderChannel,
-  QuoteRequest,
-} from '../../api/models/order.model';
+import { CreateOnlineOrderRequest, OrderChannel, QuoteRequest } from '../../api/models/order.model';
 import type { MockState, MockUser } from '../mock-db';
+import { readUploadedImage } from './auth.handlers';
 import {
   attachSlip,
   createOrder,
@@ -32,7 +28,7 @@ import {
 
 function activeCategories(state: MockState) {
   return state.categories
-    .filter((category) => category.isActive)
+    .filter((category) => category.active)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
@@ -40,10 +36,8 @@ function publicProducts(state: MockState, now: Date) {
   return state.products
     .filter(
       (product) =>
-        product.isActive &&
-        state.categories.some(
-          (category) => category.id === product.categoryId && category.isActive,
-        ),
+        product.active &&
+        state.categories.some((category) => category.id === product.categoryId && category.active),
     )
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((product) => toPublicProduct(state, product, now));
@@ -88,7 +82,7 @@ export function registerPublicHandlers(router: MockRouter): void {
             `${product.name} ${product.nameEn} ${product.description}`
               .toLowerCase()
               .includes(keyword)) &&
-          (recommended !== 'true' || product.isRecommended),
+          (recommended !== 'true' || product.recommended),
       );
     })
     .get('/public/products/:id', (context) => {
@@ -102,17 +96,17 @@ export function registerPublicHandlers(router: MockRouter): void {
     })
     .get('/public/menu', ({ state, now }) => {
       const products = publicProducts(state, now);
-      return {
-        categories: activeCategories(state).map((category) => ({
-          ...toCategory(state, category),
-          products: products.filter((product) => product.categoryId === category.id),
-        })),
-      };
+      return activeCategories(state).map((category) => ({
+        category: toCategory(state, category),
+        products: products
+          .filter((product) => product.categoryId === category.id)
+          .map(({ optionGroups, ...summary }) => summary),
+      }));
     })
     .get('/public/payment-methods', (context) => {
       const channel = (queryString(context, 'channel') || 'ONLINE') as OrderChannel;
       return context.state.paymentMethods
-        .filter((method) => method.isActive && (channel !== 'ONLINE' || method.availableOnline))
+        .filter((method) => method.active && (channel !== 'ONLINE' || method.allowOnline))
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map((method) => {
           const response = toPaymentMethod(context.state, method);
@@ -137,7 +131,7 @@ export function registerPublicHandlers(router: MockRouter): void {
       const { state, now } = context;
       const request = bodyOf<CreateOnlineOrderRequest>(context);
       if (!state.settings.acceptOnlineOrder) {
-        throw unprocessable('SHOP_CLOSED', 'Online ordering is closed');
+        throw unprocessable('ONLINE_ORDER_CLOSED', 'Online ordering is closed');
       }
       const customer = customerFor(context);
       const fields: FieldError[] = [];
@@ -146,14 +140,12 @@ export function registerPublicHandlers(router: MockRouter): void {
       if (!guestName) {
         fields.push({ field: 'guestName', message: 'guestName is required' });
       }
-      if (!customer && (!guestPhone || !isThaiPhone(guestPhone))) {
-        fields.push({ field: 'guestPhone', message: 'guestPhone is required' });
+      if (guestPhone && !isThaiPhone(guestPhone)) {
+        fields.push({ field: 'guestPhone', message: 'invalid phone' });
       }
       const method = state.paymentMethods.find(
         (candidate) =>
-          candidate.code === request.paymentMethodCode &&
-          candidate.isActive &&
-          candidate.availableOnline,
+          candidate.code === request.paymentMethodCode && candidate.active && candidate.allowOnline,
       );
       if (!method) {
         fields.push({ field: 'paymentMethodCode', message: 'invalid payment method' });
@@ -188,10 +180,24 @@ export function registerPublicHandlers(router: MockRouter): void {
     .get('/public/orders/track/:token', (context) =>
       toOrder(context.state, requireTrackedOrder(context.state, context.params['token'] ?? '')),
     )
-    .post('/public/orders/track/:token/payments', (context) => {
+    .post('/public/orders/track/:token/payments', async (context) => {
       const order = requireTrackedOrder(context.state, context.params['token'] ?? '');
-      const request = bodyOf<AttachSlipRequest>(context);
-      const payment = attachSlip(context.state, order, request, context.now);
+      const body = context.body instanceof FormData ? context.body : new FormData();
+      const methodCode = String(body.get('methodCode') ?? '');
+      const amountValue = body.get('amount');
+      const referenceNo = body.get('referenceNo');
+      const slipUrl = await readUploadedImage(body, 'slip');
+      const payment = attachSlip(
+        context.state,
+        order,
+        {
+          methodCode,
+          amount: amountValue ? Number(amountValue) : null,
+          referenceNo: referenceNo ? String(referenceNo) : null,
+          slipUrl,
+        },
+        context.now,
+      );
       return toPayment(context.state, payment);
     })
     .get('/public/promotions', ({ state, now }) =>

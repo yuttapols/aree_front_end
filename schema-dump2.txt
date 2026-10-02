@@ -1,0 +1,461 @@
+=== CategoryResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "name": {
+   "type": "string"
+  },
+  "slug": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  },
+  "icon": {
+   "type": "string"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "active": {
+   "type": "boolean"
+  }
+ }
+}
+=== CategoryUpsertRequest ===
+{
+ "type": "object",
+ "properties": {
+  "name": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "slug": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0,
+   "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+  },
+  "description": {
+   "type": "string",
+   "maxLength": 500,
+   "minLength": 0
+  },
+  "icon": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0,
+   "pattern": "^[a-zA-Z0-9 _-]*$"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100000,
+   "minimum": 0
+  },
+  "active": {
+   "type": "boolean"
+  }
+ },
+ "required": [
+  "name",
+  "slug"
+ ]
+}
+=== ProductSummary ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "categoryId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  },
+  "price": {
+   "type": "number"
+  },
+  "imageUrl": {
+   "type": "string"
+  },
+  "available": {
+   "type": "boolean"
+  },
+  "recommended": {
+   "type": "boolean"
+  },
+  "hasOptions": {
+   "type": "boolean"
+  }
+ }
+}
+=== ProductDetail ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "categoryId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "categoryName": {
+   "type": "string"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  },
+  "price": {
+   "type": "number"
+  },
+  "imageUrl": {
+   "type": "string"
+  },
+  "available": {
+   "type": "boolean"
+  },
+  "recommended": {
+   "type": "boolean"
+  },
+  "images": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/ProductImageResponse"
+   }
+  },
+  "optionGroups": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/OptionGroupResponse"
+   }
+  }
+ }
+}
+=== AdminProductResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "categoryId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "categoryName": {
+   "type": "string"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  },
+  "price": {
+   "type": "number"
+  },
+  "imageUrl": {
+   "type": "string"
+  },
+  "available": {
+   "type": "boolean"
+  },
+  "recommended": {
+   "type": "boolean"
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "updatedAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "images": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/ProductImageResponse"
+   }
+  },
+  "optionGroups": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/OptionGroupResponse"
+   }
+  }
+ }
+}
+=== ProductImageResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "url": {
+   "type": "string"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32"
+  }
+ }
+}
+=== ProductOptionGroupLink ===
+{
+ "type": "object",
+ "properties": {
+  "optionGroupId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100000,
+   "minimum": 0
+  }
+ },
+ "required": [
+  "optionGroupId"
+ ]
+}
+=== OptionGroupResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "name": {
+   "type": "string"
+  },
+  "minSelect": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "maxSelect": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/OptionItemResponse"
+   }
+  }
+ }
+}
+=== OptionItemResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "name": {
+   "type": "string"
+  },
+  "extraPrice": {
+   "type": "number"
+  },
+  "available": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32"
+  }
+ }
+}
+=== OptionItemUpsert ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "name": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "extraPrice": {
+   "type": "number",
+   "maximum": 99999.99,
+   "minimum": 0
+  },
+  "available": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100000,
+   "minimum": 0
+  }
+ },
+ "required": [
+  "extraPrice",
+  "name"
+ ]
+}
+=== OptionGroupUpsertRequest ===
+{
+ "type": "object",
+ "properties": {
+  "name": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "minSelect": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 50,
+   "minimum": 0
+  },
+  "maxSelect": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 50,
+   "minimum": 1
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100000,
+   "minimum": 0
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/OptionItemUpsert"
+   },
+   "maxItems": 50,
+   "minItems": 0
+  }
+ },
+ "required": [
+  "items",
+  "name"
+ ]
+}
+=== ProductUpsertRequest ===
+{
+ "type": "object",
+ "properties": {
+  "categoryId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "code": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0,
+   "pattern": "^[A-Z0-9][A-Z0-9_-]*$"
+  },
+  "name": {
+   "type": "string",
+   "maxLength": 150,
+   "minLength": 0
+  },
+  "description": {
+   "type": "string",
+   "maxLength": 1000,
+   "minLength": 0
+  },
+  "price": {
+   "type": "number",
+   "maximum": 99999.99,
+   "minimum": 0
+  },
+  "imageUrl": {
+   "type": "string",
+   "maxLength": 500,
+   "minLength": 0
+  },
+  "available": {
+   "type": "boolean"
+  },
+  "recommended": {
+   "type": "boolean"
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100000,
+   "minimum": 0
+  }
+ },
+ "required": [
+  "categoryId",
+  "code",
+  "name",
+  "price"
+ ]
+}
+=== MenuCategory ===
+{
+ "type": "object",
+ "properties": {
+  "category": {
+   "$ref": "#/components/schemas/CategoryResponse"
+  },
+  "products": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/ProductSummary"
+   }
+  }
+ }
+}

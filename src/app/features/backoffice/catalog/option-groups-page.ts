@@ -32,7 +32,7 @@ function toDraft(group: OptionGroupResponse): GroupDraft {
     nameEn: group.nameEn,
     minSelect: group.minSelect,
     maxSelect: group.maxSelect,
-    isActive: group.isActive,
+    active: group.active,
     items: group.items.map((item) => ({ ...item })),
   };
 }
@@ -139,7 +139,7 @@ function toDraft(group: OptionGroupResponse): GroupDraft {
                         />
                       </td>
                       <td class="px-2 py-1.5 text-center">
-                        <p-toggleswitch [(ngModel)]="item.isAvailable" />
+                        <p-toggleswitch [(ngModel)]="item.available" />
                       </td>
                       <td class="px-2 py-1.5">
                         <p-button
@@ -168,7 +168,7 @@ function toDraft(group: OptionGroupResponse): GroupDraft {
                   (onClick)="addItem(group)"
                 />
                 <label class="text-ink flex items-center gap-2 text-sm"
-                  ><p-toggleswitch [(ngModel)]="group.isActive" />{{
+                  ><p-toggleswitch [(ngModel)]="group.active" />{{
                     i18n.t('status.active.true')
                   }}</label
                 >
@@ -230,15 +230,15 @@ export class OptionGroupsPage {
         nameEn: '',
         minSelect: 0,
         maxSelect: 1,
-        isActive: true,
-        items: [{ id: null, name: '', nameEn: '', extraPrice: 0, isAvailable: true }],
+        active: true,
+        items: [{ id: null, name: '', nameEn: '', extraPrice: 0, available: true }],
       },
       ...drafts,
     ]);
   }
 
   protected addItem(group: GroupDraft): void {
-    group.items.push({ id: null, name: '', nameEn: '', extraPrice: 0, isAvailable: true });
+    group.items.push({ id: null, name: '', nameEn: '', extraPrice: 0, available: true });
     this.drafts.update((drafts) => [...drafts]);
   }
 
@@ -253,7 +253,7 @@ export class OptionGroupsPage {
       nameEn: group.nameEn,
       minSelect: group.minSelect,
       maxSelect: group.maxSelect,
-      isActive: group.isActive,
+      active: group.active,
       items: group.items.filter((item) => item.name.trim()),
     };
     this.saving.set(group.key);

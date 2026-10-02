@@ -15,12 +15,17 @@ import { PasswordInput } from '../../shared/components/password-input/password-i
 import { PhoneInput } from '../../shared/components/phone-input/phone-input';
 import {
   matchField,
+  passwordComplexity,
   requiredText,
+  textField,
   thaiPhone,
   validationMessage,
 } from '../../shared/utils/validators';
 
 const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 100;
+const NICKNAME_MAX_LENGTH = 50;
+const PHONE_MAX_LENGTH = 20;
 
 type RegisterField = 'name' | 'phone' | 'password' | 'confirmPassword';
 
@@ -142,9 +147,17 @@ export class RegisterPage {
 
   protected readonly form = inject(FormBuilder).nonNullable.group(
     {
-      name: ['', [requiredText, Validators.minLength(2)]],
-      phone: ['', [Validators.required, thaiPhone]],
-      password: ['', [Validators.required, Validators.minLength(PASSWORD_MIN_LENGTH)]],
+      name: ['', [Validators.minLength(2), ...textField(NICKNAME_MAX_LENGTH, true)]],
+      phone: ['', [Validators.required, thaiPhone, Validators.maxLength(PHONE_MAX_LENGTH)]],
+      password: [
+        '',
+        [
+          Validators.required,
+          Validators.minLength(PASSWORD_MIN_LENGTH),
+          Validators.maxLength(PASSWORD_MAX_LENGTH),
+          passwordComplexity,
+        ],
+      ],
       confirmPassword: ['', Validators.required],
     },
     { validators: matchField('password', 'confirmPassword') },

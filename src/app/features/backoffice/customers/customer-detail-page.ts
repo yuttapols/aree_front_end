@@ -22,6 +22,7 @@ import { CustomerResponse } from '../../../core/api/models/user.model';
 import { UserApi } from '../../../core/api/services/user.api';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { TEXT_LIMITS, cleanText, containsMarkup } from '../../../shared/utils/sanitize';
 import { Avatar } from '../../../shared/components/avatar/avatar';
 import { Crumb } from '../../../shared/components/breadcrumbs/breadcrumbs';
 import {
@@ -196,6 +197,7 @@ const PAGE_SIZE = 8;
             pInputText
             id="adjust-remark"
             class="w-full rounded-xl"
+            [maxlength]="remarkMaxLength"
             [ngModel]="adjustRemark()"
             (ngModelChange)="adjustRemark.set($event)"
           />
@@ -211,7 +213,7 @@ const PAGE_SIZE = 8;
           [label]="i18n.t('common.save')"
           [rounded]="true"
           [loading]="saving()"
-          [disabled]="!adjustPoints() || !adjustRemark().trim()"
+          [disabled]="!adjustPoints() || !adjustRemark().trim() || remarkUnsafe()"
           (onClick)="adjust()"
         />
       </ng-template>
@@ -246,6 +248,8 @@ export class CustomerDetailPage {
   protected readonly adjustOpen = signal(false);
   protected readonly adjustPoints = signal(0);
   protected readonly adjustRemark = signal('');
+  protected readonly remarkMaxLength = TEXT_LIMITS.remark;
+  protected readonly remarkUnsafe = computed(() => containsMarkup(this.adjustRemark()));
   protected readonly saving = signal(false);
 
   protected readonly orderColumns = computed<TableColumn<OrderResponse>[]>(() => [
@@ -320,7 +324,10 @@ export class CustomerDetailPage {
     const id = Number(this.id());
     this.saving.set(true);
     this.api
-      .adjustPoints(id, { points: this.adjustPoints(), remark: this.adjustRemark().trim() })
+      .adjustPoints(id, {
+        points: this.adjustPoints(),
+        remark: cleanText(this.adjustRemark(), TEXT_LIMITS.remark),
+      })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe(() => {
         this.adjustOpen.set(false);

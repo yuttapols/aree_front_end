@@ -23,7 +23,11 @@ import {
   required,
 } from '../mock-utils';
 
-export const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
+const ACCESS_TOKEN_TTL_MS: Record<MockUser['role'], number> = {
+  CUSTOMER: 5 * 60 * 1000,
+  STAFF: 15 * 60 * 1000,
+  ADMIN: 15 * 60 * 1000,
+};
 const REFRESH_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const SIGNATURE_PREFIX_LENGTH = 5;
 
@@ -32,7 +36,7 @@ function sign(userId: number, expiresAt: number): string {
 }
 
 export function issueAccessToken(user: MockUser, now: Date): string {
-  const expiresAt = now.getTime() + ACCESS_TOKEN_TTL_MS;
+  const expiresAt = now.getTime() + ACCESS_TOKEN_TTL_MS[user.role];
   return `mock.${user.id}.${expiresAt}.${sign(user.id, expiresAt)}`;
 }
 
@@ -101,6 +105,7 @@ export function createCustomer(
     lastLoginAt: now.toISOString(),
     createdAt: now.toISOString(),
     nickname: input.nickname,
+    passwordChangeRequired: false,
     profile: {
       memberCode: nextMemberCode(state),
       nickname: input.nickname,
@@ -120,8 +125,8 @@ export function createCustomer(
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-export async function readUploadedImage(body: unknown): Promise<string> {
-  const file = body instanceof FormData ? body.get('file') : null;
+export async function readUploadedImage(body: unknown, field = 'file'): Promise<string> {
+  const file = body instanceof FormData ? body.get(field) : null;
   if (!(file instanceof Blob)) {
     throw new MockHttpError(400, 'FILE_INVALID', 'file is required');
   }
@@ -235,11 +240,8 @@ export function registerAuthHandlers(router: MockRouter): void {
         throw badRequest('Validation failed', [{ field: 'newPassword', message: 'min 8' }]);
       }
       user.passwordHash = hashPassword(request.newPassword);
-      context.state.refreshSession = {
-        userId: user.id,
-        expiresAt: context.now.getTime() + REFRESH_TOKEN_TTL_MS,
-      };
-      return null;
+      user.passwordChangeRequired = false;
+      return session(context.state, user, context.now);
     })
     .get('/me/orders', (context) => {
       const user = requireUser(context);

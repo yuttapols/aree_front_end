@@ -280,7 +280,7 @@ export class PosPage {
       debounceTime(200),
       switchMap((request) =>
         request.items.length
-          ? this.orderApi.quote({ channel: 'WALK_IN', ...request }).pipe(
+          ? this.orderApi.adminQuote(request).pipe(
               catchError(() => {
                 this.store.redeemPoints.set(0);
                 return of(null);
@@ -302,6 +302,10 @@ export class PosPage {
   }
 
   protected pick(item: MenuItem): void {
+    if (!item.optionsLoaded) {
+      this.catalog.withOptions(item).subscribe((detailed) => this.pick(detailed));
+      return;
+    }
     if (item.optionGroups.some((group) => group.options.length)) {
       this.optionsItem.set(item);
       return;

@@ -6,6 +6,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { ALL_CATEGORIES, MenuFilterService } from '../../core/menu/menu-filter.service';
 import { Footer } from '../../layout/footer/footer';
 import { LoadingSkeleton } from '../../shared/components/loading-skeleton/loading-skeleton';
+import { ShopStatus } from '../../shared/components/shop-status/shop-status';
 import { formatBaht } from '../../shared/utils/price';
 import { CartActions } from '../cart/cart-actions.service';
 import { CategoryStrip } from './components/category-strip';
@@ -29,11 +30,13 @@ import { SearchBar } from './components/search-bar';
     Footer,
     ItemOptionsDialog,
     LoadingSkeleton,
+    ShopStatus,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 pt-5 pb-16 md:gap-10 md:px-6 md:pt-8">
       <app-hero-carousel />
+      <app-shop-status />
       <section id="menu" class="flex scroll-mt-24 flex-col gap-5">
         <app-search-bar />
         @if (catalog.loaded()) {

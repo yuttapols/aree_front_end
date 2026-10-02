@@ -15,11 +15,12 @@ import { toggleOption } from '../../utils/options';
         <legend class="mb-2 flex w-full items-center justify-between gap-2">
           <span class="text-ink text-sm font-semibold">{{ i18n.text(group.name) }}</span>
           <span
-            class="rounded-full px-2 py-0.5 text-[0.7rem] font-semibold"
-            [class]="
-              group.minSelect > 0 ? 'bg-accent-soft text-accent' : 'bg-card-muted text-ink-muted'
-            "
+            class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold transition"
+            [class]="hintClass(group)"
           >
+            @if (group.minSelect > 0 && isComplete(group)) {
+              <i class="pi pi-check-circle animate-pop text-[0.7rem]"></i>
+            }
             {{ hint(group) }}
           </span>
         </legend>
@@ -27,7 +28,7 @@ import { toggleOption } from '../../utils/options';
           @for (option of group.options; track option.id) {
             <button
               type="button"
-              class="border-line flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
+              class="border-line hover:border-brand/50 flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               [class.border-brand]="isSelected(option)"
               [class.bg-brand-soft]="isSelected(option)"
               [attr.aria-pressed]="isSelected(option)"
@@ -45,10 +46,23 @@ import { toggleOption } from '../../utils/options';
                   <i class="pi pi-check text-[0.6rem]"></i>
                 }
               </span>
-              <span class="text-ink flex-1 text-sm">{{ i18n.text(option.name) }}</span>
-              <span class="text-ink-muted text-xs">
-                {{ option.price > 0 ? '+' + money(option.price) : i18n.t('options.free') }}
+              <span
+                class="flex-1 text-sm"
+                [class]="option.available ? 'text-ink' : 'text-ink-muted line-through'"
+              >
+                {{ i18n.text(option.name) }}
               </span>
+              @if (option.available) {
+                <span class="text-ink-muted text-xs">
+                  {{ option.price > 0 ? '+' + money(option.price) : i18n.t('options.free') }}
+                </span>
+              } @else {
+                <span
+                  class="rounded-full bg-red-500/10 px-2 py-0.5 text-[0.65rem] font-bold text-red-500"
+                >
+                  {{ i18n.t('options.soldOut') }}
+                </span>
+              }
             </button>
           }
         </div>
@@ -73,6 +87,9 @@ export class OptionSelector {
   }
 
   protected isBlocked(group: MenuOptionGroup, option: MenuOption): boolean {
+    if (!option.available) {
+      return !this.isSelected(option);
+    }
     if (group.maxSelect === 1 || this.isSelected(option)) {
       return false;
     }
@@ -84,6 +101,20 @@ export class OptionSelector {
 
   protected toggle(group: MenuOptionGroup, option: MenuOption): MenuOption[] {
     return toggleOption(group, option, this.selected());
+  }
+
+  protected isComplete(group: MenuOptionGroup): boolean {
+    const count = this.selected().filter((candidate) => candidate.groupId === group.id).length;
+    return count >= group.minSelect && count <= group.maxSelect;
+  }
+
+  protected hintClass(group: MenuOptionGroup): string {
+    if (group.minSelect === 0) {
+      return 'bg-card-muted text-ink-muted';
+    }
+    return this.isComplete(group)
+      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+      : 'bg-accent-soft text-accent';
   }
 
   protected hint(group: MenuOptionGroup): string {

@@ -17,6 +17,7 @@ export interface MenuOption {
   groupId: number;
   name: LocalizedText;
   price: number;
+  available: boolean;
 }
 
 export interface MenuOptionGroup {
@@ -51,6 +52,8 @@ export interface MenuItem {
   reviews: number;
   palette: PlatePalette;
   imageUrl: string | null;
+  hasOptions: boolean;
+  optionsLoaded: boolean;
   optionGroups: MenuOptionGroup[];
   promotionIds: number[];
 }
@@ -69,5 +72,4 @@ export interface HeroSlide {
   lineTwo: LocalizedText;
   highlight: LocalizedText;
   subtitle: LocalizedText;
-  itemCodes: string[];
 }

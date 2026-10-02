@@ -22,11 +22,11 @@ import { orderSummaryLines } from '../../utils/order-lines';
       <p>{{ i18n.t('receipt.orderNo') }}: {{ order().orderNo }}</p>
       <p>{{ i18n.t('receipt.queue') }}: {{ order().queueNo }}</p>
       <p>{{ order().createdAt | thaiDate: i18n.lang() : 'datetime' }}</p>
-      @if (order().cashierName) {
-        <p>{{ i18n.t('receipt.cashier') }}: {{ order().cashierName }}</p>
+      @if (receipt().cashierName) {
+        <p>{{ i18n.t('receipt.cashier') }}: {{ receipt().cashierName }}</p>
       }
-      @if (order().memberCode) {
-        <p>{{ i18n.t('receipt.member') }}: {{ order().customerName }} ({{ order().memberCode }})</p>
+      @if (order().customer?.memberCode; as memberCode) {
+        <p>{{ i18n.t('receipt.member') }}: {{ order().customer?.nickname }} ({{ memberCode }})</p>
       }
       <div class="my-2 border-t border-dashed border-black"></div>
       @for (line of lines(); track line.key) {

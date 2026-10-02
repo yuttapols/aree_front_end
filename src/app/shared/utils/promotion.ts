@@ -5,7 +5,7 @@ import { formatMoney } from './format';
 export type PromotionState = 'RUNNING' | 'SCHEDULED' | 'EXPIRED' | 'INACTIVE';
 
 export function promotionState(promotion: PromotionResponse, now = new Date()): PromotionState {
-  if (!promotion.isActive) {
+  if (!promotion.active) {
     return 'INACTIVE';
   }
   if (new Date(promotion.endAt).getTime() < now.getTime()) {

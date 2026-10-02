@@ -15,6 +15,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { TEXT_LIMITS, cleanText, containsMarkup } from '../../../shared/utils/sanitize';
 import { TranslationKey } from '../../../core/i18n/translations';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 
@@ -130,7 +131,7 @@ const REASONS: { id: string; labelKey: TranslationKey }[] = [
           [rounded]="true"
           size="large"
           [fluid]="true"
-          [disabled]="!reason()"
+          [disabled]="!reason() || reasonUnsafe()"
           [loading]="busy()"
           (onClick)="confirmed.emit(reason())"
         />
@@ -159,9 +160,14 @@ export class CancelOrderDialog {
       return '';
     }
     return selected.id === OTHER_REASON
-      ? this.customReason().trim()
+      ? cleanText(this.customReason(), TEXT_LIMITS.reason)
       : this.i18n.t(selected.labelKey);
   });
+
+  protected readonly reasonUnsafe = computed(
+    () => this.selectedReason() === OTHER_REASON && containsMarkup(this.customReason()),
+  );
+  protected readonly reasonMaxLength = TEXT_LIMITS.reason;
 
   constructor() {
     effect(() => {

@@ -36,6 +36,14 @@ export const routes: Routes = [
           import('./features/register/register-page').then((m) => m.RegisterPage),
       },
       {
+        path: 'change-password',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/change-password/change-password-page').then(
+            (m) => m.ChangePasswordPage,
+          ),
+      },
+      {
         path: 'checkout',
         loadComponent: () =>
           import('./features/checkout/checkout-page').then((m) => m.CheckoutPage),

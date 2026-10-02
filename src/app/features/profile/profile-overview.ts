@@ -15,6 +15,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Panel } from '../../shared/components/panel/panel';
 import { PromoCard } from '../../shared/components/promo-card/promo-card';
+import { QrCode } from '../../shared/components/qr-code/qr-code';
 import { StatCard } from '../../shared/components/stat-card/stat-card';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { MoneyPipe } from '../../shared/pipes/money.pipe';
@@ -33,6 +34,7 @@ const RECENT_LIMIT = 5;
     PageHeader,
     Panel,
     PromoCard,
+    QrCode,
     StatCard,
     StatusTag,
     MoneyPipe,
@@ -44,7 +46,12 @@ const RECENT_LIMIT = 5;
 
     @if (auth.user(); as user) {
       <div class="flex flex-col gap-5 px-4 py-6 md:px-8">
-        <section class="bg-royal relative overflow-hidden rounded-3xl p-6 text-white md:p-8">
+        <section
+          class="bg-royal animate-rise relative overflow-hidden rounded-3xl p-6 text-white shadow-[0_24px_48px_-24px_rgb(58_20_102/0.7)] md:p-8"
+        >
+          <span
+            class="bg-accent/20 pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full blur-3xl"
+          ></span>
           <i
             class="pi pi-star-fill pointer-events-none absolute -top-6 -right-6 text-[9rem] text-white/5"
           ></i>
@@ -62,17 +69,26 @@ const RECENT_LIMIT = 5;
                 </p>
               }
             </div>
-            <div class="text-right">
-              <p class="text-xs text-white/70">{{ i18n.t('member.points') }}</p>
-              <p class="font-display text-accent text-5xl leading-none font-extrabold tabular-nums">
-                {{ format(user.pointsBalance) }}
-              </p>
-              <a
-                routerLink="/profile/points"
-                class="mt-2 inline-block text-xs text-white/80 underline underline-offset-4"
-              >
-                {{ i18n.t('profile.viewPoints') }}
-              </a>
+            <div class="flex items-end gap-5">
+              @if (user.memberCode; as memberCode) {
+                <div class="hidden rounded-2xl bg-white p-2 shadow-lg sm:block">
+                  <app-qr-code [value]="memberCode" [size]="88" [label]="memberCode" />
+                </div>
+              }
+              <div class="text-right">
+                <p class="text-xs text-white/70">{{ i18n.t('member.points') }}</p>
+                <p
+                  class="font-display text-accent text-5xl leading-none font-extrabold tabular-nums"
+                >
+                  {{ format(user.pointsBalance) }}
+                </p>
+                <a
+                  routerLink="/profile/points"
+                  class="mt-2 inline-block text-xs text-white/80 underline underline-offset-4"
+                >
+                  {{ i18n.t('profile.viewPoints') }}
+                </a>
+              </div>
             </div>
           </div>
           @if (points()?.expiringPoints) {

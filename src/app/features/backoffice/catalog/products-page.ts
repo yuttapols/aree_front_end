@@ -10,7 +10,7 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
-import { catchError, finalize, of } from 'rxjs';
+import { catchError, finalize, of, switchMap } from 'rxjs';
 
 import {
   ProductBadge,
@@ -34,10 +34,19 @@ import { SearchBox } from '../../../shared/components/search-box/search-box';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { formatMoney } from '../../../shared/utils/format';
-import { requiredText, shouldShowError, validationMessage } from '../../../shared/utils/validators';
+import {
+  productCode,
+  requiredText,
+  shouldShowError,
+  textField,
+  validationMessage,
+} from '../../../shared/utils/validators';
+import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
 
 const PAGE_SIZE = 10;
 const BADGES: ProductBadge[] = ['bestseller', 'new', 'recommended'];
+
+const MAX_PRICE = 99_999.99;
 
 @Component({
   selector: 'app-products-page',
@@ -132,15 +141,15 @@ const BADGES: ProductBadge[] = ['bestseller', 'new', 'recommended'];
                 </span>
               </span>
             }
-            @case ('isAvailable') {
+            @case ('available') {
               <p-toggleswitch
-                [ngModel]="row.isAvailable"
-                [disabled]="!row.isActive"
+                [ngModel]="row.available"
+                [disabled]="!row.active"
                 (ngModelChange)="toggleAvailability(row, $event)"
               />
             }
-            @case ('isActive') {
-              <app-status-tag kind="active" [value]="row.isActive" />
+            @case ('active') {
+              <app-status-tag kind="active" [value]="row.active" />
             }
             @case ('actions') {
               <p-button
@@ -150,7 +159,7 @@ const BADGES: ProductBadge[] = ['bestseller', 'new', 'recommended'];
                 [ariaLabel]="i18n.t('common.edit')"
                 (onClick)="edit(row)"
               />
-              @if (row.isActive) {
+              @if (row.active) {
                 <p-button
                   icon="pi pi-trash"
                   severity="danger"
@@ -296,20 +305,27 @@ const BADGES: ProductBadge[] = ['bestseller', 'new', 'recommended'];
             [fluid]="true"
             [placeholder]="i18n.t('common.none')"
           />
+          @if (!selectedGroupIds()?.length) {
+            <small
+              class="bg-accent-soft text-accent mt-2 flex items-start gap-2 rounded-xl px-3 py-2 text-xs font-semibold"
+              role="status"
+            >
+              <i class="pi pi-exclamation-triangle mt-0.5 text-xs"></i>
+              {{ i18n.t('catalog.noOptionGroupsWarning') }}
+            </small>
+          }
         </app-form-field>
         <div class="flex flex-wrap gap-5 sm:col-span-2">
           <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="isAvailable" />{{
-              i18n.t('catalog.available')
-            }}</label
+            ><p-toggleswitch formControlName="available" />{{ i18n.t('catalog.available') }}</label
           >
           <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="isRecommended" />{{
+            ><p-toggleswitch formControlName="recommended" />{{
               i18n.t('catalog.recommended')
             }}</label
           >
           <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="isActive" />{{ i18n.t('status.active.true') }}</label
+            ><p-toggleswitch formControlName="active" />{{ i18n.t('status.active.true') }}</label
           >
         </div>
         <div class="flex justify-end gap-2 sm:col-span-2">
@@ -349,6 +365,9 @@ export class ProductsPage {
   protected readonly saving = signal(false);
   protected readonly dialogOpen = signal(false);
   protected readonly editingId = signal<number | null>(null);
+  protected readonly editingProduct = computed(
+    () => this.products().find((product) => product.id === this.editingId()) ?? null,
+  );
   protected readonly submitted = signal(false);
   protected readonly palette = fallbackPalette;
 
@@ -382,26 +401,33 @@ export class ProductsPage {
       align: 'right',
       value: (row) => formatMoney(row.price, false),
     },
-    { key: 'isAvailable', label: this.i18n.t('catalog.available'), align: 'center', custom: true },
-    { key: 'isActive', label: this.i18n.t('common.status'), custom: true },
+    { key: 'available', label: this.i18n.t('catalog.available'), align: 'center', custom: true },
+    { key: 'active', label: this.i18n.t('common.status'), custom: true },
     { key: 'actions', label: '', align: 'right', width: '7rem', custom: true },
   ]);
 
   protected readonly form = inject(FormBuilder).group({
     categoryId: [null as number | null, Validators.required],
-    code: ['', [requiredText]],
-    name: ['', [requiredText]],
-    nameEn: [''],
-    description: [''],
-    descriptionEn: [''],
-    price: [0 as number | null, [Validators.required, Validators.min(0)]],
+    code: ['', [requiredText, Validators.maxLength(TEXT_LIMITS.code), productCode]],
+    name: ['', textField(TEXT_LIMITS.productName, true)],
+    nameEn: ['', textField(TEXT_LIMITS.productName)],
+    description: ['', textField(TEXT_LIMITS.description)],
+    descriptionEn: ['', textField(TEXT_LIMITS.description)],
+    price: [
+      0 as number | null,
+      [Validators.required, Validators.min(0), Validators.max(MAX_PRICE)],
+    ],
     originalPrice: [null as number | null],
     imageUrl: [null as string | null],
     badge: [null as ProductBadge | null],
     optionGroupIds: [[] as number[]],
-    isAvailable: [true],
-    isRecommended: [false],
-    isActive: [true],
+    available: [true],
+    recommended: [false],
+    active: [true],
+  });
+
+  protected readonly selectedGroupIds = toSignal(this.form.controls.optionGroupIds.valueChanges, {
+    initialValue: this.form.controls.optionGroupIds.value,
   });
 
   constructor() {
@@ -440,9 +466,9 @@ export class ProductsPage {
       imageUrl: product?.imageUrl ?? null,
       badge: product?.badge ?? null,
       optionGroupIds: product?.optionGroupIds ?? [],
-      isAvailable: product?.isAvailable ?? true,
-      isRecommended: product?.isRecommended ?? false,
-      isActive: product?.isActive ?? true,
+      available: product?.available ?? true,
+      recommended: product?.recommended ?? false,
+      active: product?.active ?? true,
     });
     this.dialogOpen.set(true);
   }
@@ -465,15 +491,22 @@ export class ProductsPage {
       originalPrice: value.originalPrice || null,
       imageUrl: value.imageUrl,
       badge: value.badge,
-      optionGroupIds: value.optionGroupIds ?? [],
-      isAvailable: value.isAvailable ?? true,
-      isRecommended: value.isRecommended ?? false,
-      isActive: value.isActive ?? true,
+      available: value.available ?? true,
+      recommended: value.recommended ?? false,
+      active: value.active ?? true,
+      sortOrder: this.editingProduct()?.sortOrder ?? 0,
     };
     const id = this.editingId();
     this.saving.set(true);
+    const optionGroupBindings = (value.optionGroupIds ?? []).map((optionGroupId, sortOrder) => ({
+      optionGroupId,
+      sortOrder,
+    }));
     (id ? this.api.updateProduct(id, request) : this.api.createProduct(request))
-      .pipe(finalize(() => this.saving.set(false)))
+      .pipe(
+        switchMap((product) => this.api.setProductOptionGroups(product.id, optionGroupBindings)),
+        finalize(() => this.saving.set(false)),
+      )
       .subscribe(() => {
         this.dialogOpen.set(false);
         this.messages.add({ severity: 'success', summary: this.i18n.t('common.saved') });

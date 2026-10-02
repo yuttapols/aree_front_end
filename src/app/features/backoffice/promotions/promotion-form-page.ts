@@ -39,7 +39,14 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Panel } from '../../../shared/components/panel/panel';
 import { PromoCard } from '../../../shared/components/promo-card/promo-card';
 import { dayName } from '../../../shared/utils/promotion';
-import { requiredText, shouldShowError, validationMessage } from '../../../shared/utils/validators';
+import {
+  productCode,
+  requiredText,
+  shouldShowError,
+  textField,
+  validationMessage,
+} from '../../../shared/utils/validators';
+import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
 
 const TYPES: PromotionType[] = ['PERCENT', 'FIXED_AMOUNT', 'BUY_X_GET_Y', 'POINT_MULTIPLIER'];
 const SCOPES: PromotionScope[] = ['ORDER', 'PRODUCT', 'CATEGORY'];
@@ -376,7 +383,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7];
                 }}</label
               >
               <label class="text-ink flex items-center gap-2 text-sm"
-                ><p-toggleswitch formControlName="isActive" />{{
+                ><p-toggleswitch formControlName="active" />{{
                   i18n.t('status.active.true')
                 }}</label
               >
@@ -426,11 +433,11 @@ export class PromotionFormPage {
   private readonly usedCount = signal(0);
 
   protected readonly form = inject(FormBuilder).group({
-    name: ['', [requiredText]],
-    nameEn: [''],
-    description: [''],
-    descriptionEn: [''],
-    code: [''],
+    name: ['', textField(TEXT_LIMITS.promotionName, true)],
+    nameEn: ['', textField(TEXT_LIMITS.promotionName)],
+    description: ['', textField(TEXT_LIMITS.description)],
+    descriptionEn: ['', textField(TEXT_LIMITS.description)],
+    code: ['', [Validators.maxLength(TEXT_LIMITS.code), productCode]],
     bannerUrl: [null as string | null],
     type: ['PERCENT' as PromotionType],
     discountValue: [10 as number | null],
@@ -450,7 +457,7 @@ export class PromotionFormPage {
     usagePerCustomer: [null as number | null],
     showOnLanding: [true],
     priority: [1 as number | null],
-    isActive: [true],
+    active: [true],
   });
 
   private readonly value = toSignal(this.form.valueChanges, {
@@ -603,7 +610,7 @@ export class PromotionFormPage {
       usagePerCustomer: value.usagePerCustomer || null,
       showOnLanding: value.showOnLanding ?? false,
       priority: value.priority ?? 0,
-      isActive: value.isActive ?? true,
+      active: value.active ?? true,
       productIds: value.productIds ?? [],
       categoryIds: value.categoryIds ?? [],
     };

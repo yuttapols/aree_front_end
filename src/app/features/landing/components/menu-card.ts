@@ -5,7 +5,7 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { FavoritesService } from '../../../core/menu/favorites.service';
 import { MenuItem } from '../../../core/models/menu.model';
 import { Chip, ChipTone } from '../../../shared/components/chip/chip';
-import { FoodPlate } from '../../../shared/components/food-plate/food-plate';
+import { ProductImage } from '../../../shared/components/product-image/product-image';
 import { Price } from '../../../shared/components/price/price';
 import { QtyStepper } from '../../../shared/components/qty-stepper/qty-stepper';
 import { Rating } from '../../../shared/components/rating/rating';
@@ -14,13 +14,14 @@ import { CartActions } from '../../cart/cart-actions.service';
 
 @Component({
   selector: 'app-menu-card',
-  imports: [Chip, FoodPlate, Price, QtyStepper, Rating],
+  imports: [Chip, ProductImage, Price, QtyStepper, Rating],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
     <article
-      class="bg-card shadow-soft flex h-full flex-col rounded-3xl p-3 transition duration-200"
+      class="bg-card shadow-soft flex h-full flex-col rounded-3xl p-3 transition duration-300"
       [class.hover:-translate-y-1]="!soldOut()"
+      [class.hover:shadow-lift]="!soldOut()"
       [class.ring-2]="qty() > 0"
       [class.ring-accent]="qty() > 0"
     >
@@ -51,19 +52,14 @@ import { CartActions } from '../../cart/cart-actions.service';
         [attr.aria-label]="name()"
         (click)="actions.openOptions(item())"
       >
-        @if (item().imageUrl) {
-          <img
-            [src]="item().imageUrl"
-            [alt]="name()"
-            class="mx-auto h-full w-full rounded-xl object-cover transition duration-300 group-enabled:group-hover:scale-105"
-          />
-        } @else {
-          <app-food-plate
-            class="mx-auto h-full transition duration-300 group-enabled:group-hover:scale-105 group-enabled:group-hover:rotate-6"
-            [palette]="item().palette"
-            [label]="name()"
-          />
-        }
+        <app-product-image
+          class="h-full"
+          [src]="item().imageUrl"
+          [palette]="item().palette"
+          [label]="name()"
+          imageClass="mx-auto h-full w-full rounded-xl object-cover transition duration-300 group-enabled:group-hover:scale-105"
+          plateClass="mx-auto h-full transition duration-300 group-enabled:group-hover:scale-105 group-enabled:group-hover:rotate-6"
+        />
       </button>
 
       <h3 class="mt-3 line-clamp-1 font-bold" [class]="soldOut() ? 'text-ink-muted' : 'text-ink'">

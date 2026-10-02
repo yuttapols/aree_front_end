@@ -20,13 +20,16 @@ import { PhoneInput } from '../../../shared/components/phone-input/phone-input';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { formatDate, formatPhone } from '../../../shared/utils/format';
+import { generateTemporaryPassword } from '../../../shared/utils/password';
 import {
   optionalEmail,
   requiredText,
   shouldShowError,
+  textField,
   thaiPhone,
   validationMessage,
 } from '../../../shared/utils/validators';
+import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
 
 @Component({
   selector: 'app-staff-page',
@@ -228,12 +231,15 @@ export class StaffPage {
   protected readonly tempPassword = signal<string | null>(null);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    nickname: ['', [requiredText]],
-    phone: ['', [Validators.required, thaiPhone]],
-    email: ['', [optionalEmail]],
+    nickname: ['', textField(TEXT_LIMITS.nickname, true)],
+    phone: ['', [Validators.required, Validators.maxLength(TEXT_LIMITS.phone), thaiPhone]],
+    email: ['', [Validators.maxLength(TEXT_LIMITS.email), optionalEmail]],
     role: ['STAFF' as UserRole],
     status: ['ACTIVE' as UserStatus],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: [
+      '',
+      [Validators.required, Validators.minLength(8), Validators.maxLength(TEXT_LIMITS.password)],
+    ],
   });
 
   protected readonly roleOptions = computed(() =>
@@ -324,9 +330,10 @@ export class StaffPage {
       message: this.i18n.t('bo.staff.confirmReset', { name: member.nickname }),
     });
     if (ok) {
+      const newPassword = generateTemporaryPassword();
       this.api
-        .resetStaffPassword(member.id)
-        .subscribe((response) => this.tempPassword.set(response.temporaryPassword));
+        .resetStaffPassword(member, newPassword)
+        .subscribe(() => this.tempPassword.set(newPassword));
     }
   }
 

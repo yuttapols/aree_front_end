@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin, of, switchMap } from 'rxjs';
 
 import { OrderResponse } from '../../../core/api/models/order.model';
 import { OrderApi } from '../../../core/api/services/order.api';
@@ -150,7 +150,7 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
       <app-settle-confirm-dialog
         [(visible)]="confirming"
         [queueNo]="order().queueNo"
-        [customerName]="order().customerFullName ?? order().customerName"
+        [customerName]="displayName()"
         [methodLabel]="i18n.t(chosen.labelKey)"
         [methodIcon]="chosen.icon"
         [amount]="order().totalAmount"
@@ -162,7 +162,7 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
     <app-cancel-order-dialog
       [(visible)]="cancelling"
       [queueNo]="order().queueNo"
-      [customerName]="order().customerFullName ?? order().customerName"
+      [customerName]="displayName()"
       [amount]="order().totalAmount"
       [busy]="busy()"
       (confirmed)="cancel($event)"
@@ -190,6 +190,10 @@ export class QueueOrderPanel {
   protected readonly itemCount = computed(() =>
     this.order().items.reduce((total, item) => total + item.quantity, 0),
   );
+  protected readonly displayName = computed(
+    () =>
+      this.order().customer?.nickname ?? this.order().guestName ?? this.i18n.t('bo.walkInGuest'),
+  );
   private readonly orderId = computed(() => this.order().id);
 
   constructor() {
@@ -208,9 +212,32 @@ export class QueueOrderPanel {
     }
     const order = this.order();
     this.busy.set(true);
-    this.api
-      .settle(order.id, method.code)
-      .pipe(finalize(() => this.busy.set(false)))
+    const pending = order.payments.filter((payment) => payment.status === 'PENDING');
+    const matching = pending.filter((payment) => payment.methodCode === method.code);
+    const mismatched = pending.filter((payment) => payment.methodCode !== method.code);
+    const resolvePending$ = pending.length
+      ? forkJoin([
+          ...matching.map((payment) => this.api.verifyPayment(payment.id, true, null)),
+          ...mismatched.map((payment) =>
+            this.api.verifyPayment(payment.id, false, this.i18n.t('bo.today.reasonMethodChanged')),
+          ),
+        ])
+      : of([]);
+    resolvePending$
+      .pipe(
+        switchMap(() => this.api.order(order.id)),
+        switchMap((fresh) =>
+          fresh.remainingAmount > 0
+            ? this.api.addPayment(order.id, {
+                methodCode: method.code,
+                cashReceived: null,
+                referenceNo: null,
+              })
+            : of(fresh),
+        ),
+        switchMap(() => this.api.updateStatus(order.id, 'COMPLETED')),
+        finalize(() => this.busy.set(false)),
+      )
       .subscribe(() => {
         this.confirming.set(false);
         this.messages.add({

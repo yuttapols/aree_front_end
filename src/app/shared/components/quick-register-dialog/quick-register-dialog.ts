@@ -18,7 +18,8 @@ import { ApiException } from '../../../core/api/models/common.model';
 import { CustomerResponse } from '../../../core/api/models/user.model';
 import { UserApi } from '../../../core/api/services/user.api';
 import { I18nService } from '../../../core/i18n/i18n.service';
-import { requiredText, thaiPhone, validationMessage } from '../../utils/validators';
+import { TEXT_LIMITS } from '../../utils/sanitize';
+import { textField, thaiPhone, validationMessage } from '../../utils/validators';
 import { FormField } from '../form-field/form-field';
 import { PhoneInput } from '../phone-input/phone-input';
 
@@ -107,8 +108,8 @@ export class QuickRegisterDialog {
   protected readonly password = signal<string | null>(null);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    nickname: ['', [requiredText]],
-    phone: ['', [Validators.required, thaiPhone]],
+    nickname: ['', textField(TEXT_LIMITS.nickname, true)],
+    phone: ['', [Validators.required, Validators.maxLength(TEXT_LIMITS.phone), thaiPhone]],
   });
 
   constructor() {

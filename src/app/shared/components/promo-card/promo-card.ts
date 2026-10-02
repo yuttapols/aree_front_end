@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 
@@ -7,6 +7,8 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { ThaiDatePipe } from '../../pipes/thai-date.pipe';
 import { promotionConditions, promotionHeadline } from '../../utils/promotion';
 
+const COPIED_RESET_MS = 1500;
+
 @Component({
   selector: 'app-promo-card',
   imports: [RouterLink, ThaiDatePipe],
@@ -14,7 +16,7 @@ import { promotionConditions, promotionHeadline } from '../../utils/promotion';
   host: { class: 'block' },
   template: `
     <article
-      class="bg-card border-line shadow-soft flex h-full flex-col overflow-hidden rounded-3xl border"
+      class="bg-card border-line shadow-soft animate-rise flex h-full flex-col overflow-hidden rounded-3xl border transition duration-300 hover:-translate-y-1 hover:shadow-lift"
     >
       <a
         [routerLink]="['/promotions', promotion().id]"
@@ -33,6 +35,10 @@ import { promotionConditions, promotionHeadline } from '../../utils/promotion';
         <p class="font-display text-accent relative text-3xl font-extrabold">{{ headline() }}</p>
         <h3 class="relative mt-1 text-lg leading-snug font-bold">{{ i18n.name(promotion()) }}</h3>
       </a>
+      <div
+        class="coupon-notch border-line relative border-b-2 border-dashed"
+        aria-hidden="true"
+      ></div>
       <div class="flex flex-1 flex-col gap-3 p-5">
         <p class="text-ink-muted text-sm">
           {{ i18n.pick(promotion().description, promotion().descriptionEn) }}
@@ -62,7 +68,11 @@ import { promotionConditions, promotionHeadline } from '../../utils/promotion';
               [attr.aria-label]="i18n.t('promo.copyCode')"
               (click)="copy(code)"
             >
-              <i class="pi pi-copy mr-1 text-[0.65rem]"></i>{{ code }}
+              <i
+                [class]="copied() ? 'pi pi-check animate-pop' : 'pi pi-copy'"
+                class="mr-1 text-[0.65rem]"
+              ></i
+              >{{ code }}
             </button>
           } @else {
             <span class="text-accent text-xs font-semibold">{{ i18n.t('promo.autoApply') }}</span>
@@ -81,7 +91,11 @@ export class PromoCard {
   protected readonly headline = computed(() => promotionHeadline(this.promotion(), this.i18n));
   protected readonly conditions = computed(() => promotionConditions(this.promotion(), this.i18n));
 
+  protected readonly copied = signal(false);
+
   protected copy(code: string): void {
+    this.copied.set(true);
+    setTimeout(() => this.copied.set(false), COPIED_RESET_MS);
     navigator.clipboard?.writeText(code).catch(() => undefined);
     this.messages.add({ severity: 'success', summary: this.i18n.t('promo.copied', { code }) });
   }

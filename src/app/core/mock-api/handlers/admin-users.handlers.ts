@@ -3,7 +3,7 @@ import { AdjustPointsRequest } from '../../api/models/loyalty.model';
 import { PaymentMethodUpsertRequest } from '../../api/models/order.model';
 import {
   QuickRegisterRequest,
-  ShopSettings,
+  UpdateSettingsRequest,
   StaffUpsertRequest,
 } from '../../api/models/user.model';
 import type { MockUser } from '../mock-db';
@@ -39,6 +39,9 @@ import {
   temporaryPassword,
 } from '../mock-utils';
 import { assertUniqueContact, createCustomer } from './auth.handlers';
+import { fromSettingValues, toSettingEntries } from '../../api/services/settings.mapper';
+
+const MAX_SETTING_KEYS = 50;
 
 function requireCustomer(context: MockContext): MockUser {
   const customer = context.state.users.find(
@@ -113,6 +116,7 @@ export function registerAdminUserHandlers(router: MockRouter): void {
         context.now,
       );
       customer.lastLoginAt = null;
+      customer.passwordChangeRequired = true;
       return { customer: toCustomer(context.state, customer), temporaryPassword: password };
     })
     .get('/admin/customers/:id', (context) => {
@@ -200,6 +204,7 @@ export function registerAdminUserHandlers(router: MockRouter): void {
         lastLoginAt: null,
         createdAt: context.now.toISOString(),
         nickname: request.nickname.trim(),
+        passwordChangeRequired: true,
         profile: null,
       };
       context.state.users.push(staff);
@@ -230,25 +235,29 @@ export function registerAdminUserHandlers(router: MockRouter): void {
         role: request.role === 'ADMIN' ? 'ADMIN' : 'STAFF',
         status: request.status,
       });
-      if (staff.status === 'SUSPENDED' && context.state.refreshSession?.userId === staff.id) {
+      if (request.newPassword) {
+        staff.passwordHash = hashPassword(request.newPassword);
+        staff.passwordChangeRequired = true;
+      }
+      if (
+        (staff.status === 'SUSPENDED' || request.newPassword) &&
+        context.state.refreshSession?.userId === staff.id
+      ) {
         context.state.refreshSession = null;
       }
       return toStaff(staff);
     })
-    .post('/admin/staff/:id/reset-password', (context) => {
-      requireAdmin(context);
-      const staff = requireStaffMember(context);
-      const password = temporaryPassword();
-      staff.passwordHash = hashPassword(password);
-      return { temporaryPassword: password };
-    })
     .get('/admin/settings', (context) => {
       requireAdmin(context);
-      return context.state.settings;
+      return toSettingEntries(context.state.settings);
     })
     .put('/admin/settings', (context) => {
       requireAdmin(context);
-      const request = bodyOf<ShopSettings>(context);
+      const values = bodyOf<UpdateSettingsRequest>(context)?.values ?? {};
+      if (Object.keys(values).length > MAX_SETTING_KEYS) {
+        throw badRequest('Validation failed', [{ field: 'values', message: 'max 50 keys' }]);
+      }
+      const request = fromSettingValues(context.state.settings, values);
       const fields: FieldError[] = [];
       required(request.shopName, 'shopName', fields);
       for (const key of [
@@ -265,8 +274,9 @@ export function registerAdminUserHandlers(router: MockRouter): void {
       if (fields.length) {
         throw badRequest('Validation failed', fields);
       }
-      context.state.settings = { ...context.state.settings, ...request };
-      return context.state.settings;
+      context.state.settings = request;
+      const updatedKeys = new Set(Object.keys(values));
+      return toSettingEntries(request).filter((entry) => updatedKeys.has(entry.key));
     })
     .get('/admin/payment-methods', (context) => {
       requireStaff(context);
@@ -311,8 +321,10 @@ export function registerAdminUserHandlers(router: MockRouter): void {
         nameEn: request.nameEn || request.name,
         requiresSlip: request.requiresSlip,
         requiresReference: request.requiresReference,
-        availableOnline: request.availableOnline,
-        isActive: request.isActive,
+        allowOnline: request.allowOnline,
+        active: request.active,
+        icon: request.icon,
+        sortOrder: request.sortOrder,
         instruction: request.instruction ?? '',
       });
       return toPaymentMethod(context.state, method);

@@ -76,7 +76,7 @@ function applyOptionItems(state: MockState, request: OptionGroupUpsertRequest) {
     name: item.name.trim(),
     nameEn: item.nameEn?.trim() || item.name.trim(),
     extraPrice: Number(item.extraPrice) || 0,
-    isAvailable: item.isAvailable,
+    available: item.available,
     sortOrder: index + 1,
   }));
 }
@@ -101,7 +101,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         description: request.description ?? '',
         icon: request.icon || 'pi pi-star',
         sortOrder: context.state.categories.length + 1,
-        isActive: request.isActive,
+        active: request.active,
         palette: null,
       };
       context.state.categories.push(category);
@@ -123,7 +123,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         slug: request.slug,
         description: request.description ?? '',
         icon: request.icon || category.icon,
-        isActive: request.isActive,
+        active: request.active,
       });
       return toCategory(context.state, category);
     })
@@ -135,7 +135,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
       if (!category) {
         throw notFound();
       }
-      category.isActive = false;
+      category.active = false;
       return null;
     })
     .patch('/admin/categories/sort', (context) => {
@@ -161,7 +161,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
               `${product.code} ${product.name} ${product.nameEn}`
                 .toLowerCase()
                 .includes(keyword)) &&
-            (!active || product.isActive === (active === 'true')),
+            (!active || product.active === (active === 'true')),
         )
         .sort((a, b) => a.categoryId - b.categoryId || a.sortOrder - b.sortOrder)
         .map((product) => toProduct(context.state, product));
@@ -181,6 +181,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         rating: 5,
         reviews: 0,
         palette: null,
+        optionGroupIds: [] as number[],
       };
       context.state.products.push(product);
       return toProduct(context.state, product);
@@ -211,8 +212,29 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
       if (!product) {
         throw notFound();
       }
-      product.isActive = false;
+      product.active = false;
       return null;
+    })
+    .put('/admin/products/:id/option-groups', (context) => {
+      requireAdmin(context);
+      const product = context.state.products.find(
+        (candidate) => candidate.id === numberParam(context, 'id'),
+      );
+      if (!product) {
+        throw notFound();
+      }
+      const bindings = bodyOf<{ optionGroupId: number; sortOrder: number }[]>(context) ?? [];
+      const knownGroupIds = new Set(context.state.optionGroups.map((group) => group.id));
+      if (
+        bindings.length > 20 ||
+        bindings.some((binding) => !knownGroupIds.has(binding.optionGroupId))
+      ) {
+        throw badRequest('Validation failed', [{ field: 'optionGroupId', message: 'invalid' }]);
+      }
+      product.optionGroupIds = [...bindings]
+        .sort((first, second) => first.sortOrder - second.sortOrder)
+        .map((binding) => binding.optionGroupId);
+      return toProduct(context.state, product);
     })
     .patch('/admin/products/:id/availability', (context) => {
       requireStaff(context);
@@ -222,7 +244,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
       if (!product) {
         throw notFound();
       }
-      product.isAvailable = Boolean(bodyOf<{ isAvailable: boolean }>(context).isAvailable);
+      product.available = Boolean(bodyOf<{ available: boolean }>(context).available);
       return toProduct(context.state, product);
     })
     .get('/admin/option-groups', (context) => {
@@ -239,7 +261,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         nameEn: request.nameEn?.trim() || request.name.trim(),
         minSelect: request.minSelect,
         maxSelect: request.maxSelect,
-        isActive: request.isActive,
+        active: request.active,
         sortOrder: context.state.optionGroups.length + 1,
         items: applyOptionItems(context.state, request),
       };
@@ -261,7 +283,7 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         nameEn: request.nameEn?.trim() || request.name.trim(),
         minSelect: request.minSelect,
         maxSelect: request.maxSelect,
-        isActive: request.isActive,
+        active: request.active,
         items: applyOptionItems(context.state, request),
       });
       return group;

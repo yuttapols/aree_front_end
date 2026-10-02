@@ -10,7 +10,7 @@ export interface CategoryResponse {
   description: string;
   icon: string;
   sortOrder: number;
-  isActive: boolean;
+  active: boolean;
   palette: PlatePaletteDto | null;
   productCount: number;
 }
@@ -21,7 +21,7 @@ export interface CategoryUpsertRequest {
   slug: string;
   description: string;
   icon: string;
-  isActive: boolean;
+  active: boolean;
 }
 
 export interface SortOrderItem {
@@ -34,7 +34,7 @@ export interface OptionItemResponse {
   name: string;
   nameEn: string;
   extraPrice: number;
-  isAvailable: boolean;
+  available: boolean;
   sortOrder: number;
 }
 
@@ -44,7 +44,7 @@ export interface OptionGroupResponse {
   nameEn: string;
   minSelect: number;
   maxSelect: number;
-  isActive: boolean;
+  active: boolean;
   sortOrder: number;
   items: OptionItemResponse[];
 }
@@ -54,7 +54,7 @@ export interface OptionItemUpsert {
   name: string;
   nameEn: string;
   extraPrice: number;
-  isAvailable: boolean;
+  available: boolean;
 }
 
 export interface OptionGroupUpsertRequest {
@@ -62,7 +62,7 @@ export interface OptionGroupUpsertRequest {
   nameEn: string;
   minSelect: number;
   maxSelect: number;
-  isActive: boolean;
+  active: boolean;
   items: OptionItemUpsert[];
 }
 
@@ -78,9 +78,9 @@ export interface ProductResponse {
   price: number;
   originalPrice: number | null;
   imageUrl: string | null;
-  isAvailable: boolean;
-  isRecommended: boolean;
-  isActive: boolean;
+  available: boolean;
+  recommended: boolean;
+  active: boolean;
   sortOrder: number;
   badge: ProductBadge | null;
   rating: number;
@@ -90,8 +90,42 @@ export interface ProductResponse {
 }
 
 export interface PublicProductResponse extends ProductResponse {
+  hasOptions: boolean;
   optionGroups: OptionGroupResponse[];
   promotionIds: number[];
+}
+
+export interface ProductSummaryResponse {
+  id: number;
+  categoryId: number;
+  code: string;
+  name: string;
+  nameEn?: string | null;
+  description: string | null;
+  descriptionEn?: string | null;
+  price: number;
+  originalPrice?: number | null;
+  imageUrl: string | null;
+  available: boolean;
+  recommended: boolean;
+  hasOptions: boolean;
+  badge?: ProductBadge | null;
+  rating?: number;
+  reviews?: number;
+  palette?: PlatePaletteDto | null;
+  promotionIds?: number[];
+}
+
+export interface ProductImageResponse {
+  id: number;
+  url: string;
+  sortOrder: number;
+}
+
+export interface ProductDetailResponse extends ProductSummaryResponse {
+  categoryName?: string;
+  images?: ProductImageResponse[];
+  optionGroups: OptionGroupResponse[];
 }
 
 export interface ProductUpsertRequest {
@@ -104,11 +138,16 @@ export interface ProductUpsertRequest {
   price: number;
   originalPrice: number | null;
   imageUrl: string | null;
-  isAvailable: boolean;
-  isRecommended: boolean;
-  isActive: boolean;
+  available: boolean;
+  recommended: boolean;
+  active: boolean;
+  sortOrder: number;
   badge: ProductBadge | null;
-  optionGroupIds: number[];
+}
+
+export interface ProductOptionGroupBinding {
+  optionGroupId: number;
+  sortOrder: number;
 }
 
 export interface ProductQuery {
@@ -119,10 +158,9 @@ export interface ProductQuery {
   active?: boolean | null;
 }
 
-export interface MenuCategoryResponse extends CategoryResponse {
-  products: PublicProductResponse[];
+export interface MenuCategoryResponse {
+  category: CategoryResponse;
+  products: ProductSummaryResponse[];
 }
 
-export interface MenuResponse {
-  categories: MenuCategoryResponse[];
-}
+export type MenuResponse = MenuCategoryResponse[];

@@ -10,11 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 
-import {
-  KitchenBoardResponse,
-  OrderResponse,
-  OrderStatus,
-} from '../../../core/api/models/order.model';
+import { BoardItem, KitchenBoardResponse, OrderStatus } from '../../../core/api/models/order.model';
 import { OrderApi } from '../../../core/api/services/order.api';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { TranslationKey } from '../../../core/i18n/translations';
@@ -30,7 +26,7 @@ const POLL_MS = 5_000;
 const SOUND_KEY = 'roti.kitchen.sound';
 
 interface BoardColumn {
-  key: keyof KitchenBoardResponse;
+  status: OrderStatus;
   titleKey: TranslationKey;
   next: OrderStatus;
   actionKey: TranslationKey;
@@ -40,7 +36,7 @@ interface BoardColumn {
 
 const COLUMNS: BoardColumn[] = [
   {
-    key: 'confirmed',
+    status: 'CONFIRMED',
     titleKey: 'kitchen.confirmed',
     next: 'PREPARING',
     actionKey: 'kitchen.start',
@@ -48,7 +44,7 @@ const COLUMNS: BoardColumn[] = [
     tone: 'bg-sky-500',
   },
   {
-    key: 'preparing',
+    status: 'PREPARING',
     titleKey: 'kitchen.preparing',
     next: 'READY',
     actionKey: 'kitchen.ready',
@@ -56,7 +52,7 @@ const COLUMNS: BoardColumn[] = [
     tone: 'bg-accent',
   },
   {
-    key: 'ready',
+    status: 'READY',
     titleKey: 'kitchen.readyColumn',
     next: 'COMPLETED',
     actionKey: 'kitchen.pickedUp',
@@ -85,7 +81,7 @@ const COLUMNS: BoardColumn[] = [
       </div>
 
       <div class="grid gap-4 lg:grid-cols-3">
-        @for (column of columns; track column.key) {
+        @for (column of columns; track column.status) {
           <section class="bg-card-muted flex min-h-[60vh] flex-col rounded-3xl p-3">
             <header class="mb-3 flex items-center justify-between px-2">
               <h2 class="text-ink flex items-center gap-2 font-bold">
@@ -93,11 +89,11 @@ const COLUMNS: BoardColumn[] = [
                 {{ i18n.t(column.titleKey) }}
               </h2>
               <span class="bg-card text-ink rounded-full px-2.5 py-0.5 text-xs font-bold">
-                {{ board()?.[column.key]?.length ?? 0 }}
+                {{ grouped().get(column.status)?.length ?? 0 }}
               </span>
             </header>
             <div class="flex flex-col gap-3">
-              @for (order of board()?.[column.key] ?? []; track order.id) {
+              @for (order of grouped().get(column.status) ?? []; track order.id) {
                 <article class="bg-card border-line shadow-soft animate-pop rounded-2xl border p-4">
                   <div class="flex items-start justify-between gap-2">
                     <div>
@@ -173,14 +169,18 @@ export class KitchenBoardPage {
   private readonly now = signal(Date.now());
   private knownIds: Set<number> | null = null;
 
+  protected readonly grouped = computed(() => {
+    const board = this.board() ?? [];
+    const map = new Map<OrderStatus, BoardItem[]>();
+    for (const order of board) {
+      map.set(order.status, [...(map.get(order.status) ?? []), order]);
+    }
+    return map;
+  });
+
   private readonly lineCache = computed(() => {
-    const board = this.board();
     const map = new Map<number, ReturnType<typeof orderSummaryLines>>();
-    for (const order of [
-      ...(board?.confirmed ?? []),
-      ...(board?.preparing ?? []),
-      ...(board?.ready ?? []),
-    ]) {
+    for (const order of this.board() ?? []) {
       map.set(order.id, orderSummaryLines(order.items, this.i18n));
     }
     return map;
@@ -192,15 +192,15 @@ export class KitchenBoardPage {
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
   }
 
-  protected lines(order: OrderResponse) {
+  protected lines(order: BoardItem) {
     return this.lineCache().get(order.id) ?? [];
   }
 
-  protected waited(order: OrderResponse): number {
+  protected waited(order: BoardItem): number {
     return minutesSince(order.confirmedAt ?? order.createdAt, this.now());
   }
 
-  protected waitClass(order: OrderResponse): string {
+  protected waitClass(order: BoardItem): string {
     const minutes = this.waited(order);
     return minutes >= 15 ? 'text-red-500' : minutes >= 8 ? 'text-accent' : 'text-ink-muted';
   }
@@ -210,7 +210,7 @@ export class KitchenBoardPage {
     writeStorage(SOUND_KEY, enabled ? 'on' : 'off');
   }
 
-  protected advance(order: OrderResponse, status: OrderStatus): void {
+  protected advance(order: BoardItem, status: OrderStatus): void {
     this.updating.set(order.id);
     this.api.updateStatus(order.id, status).subscribe({
       next: () => {
@@ -224,7 +224,9 @@ export class KitchenBoardPage {
   private load(): void {
     this.now.set(Date.now());
     this.api.board().subscribe((board) => {
-      const ids = new Set(board.confirmed.map((order) => order.id));
+      const ids = new Set(
+        board.filter((order) => order.status === 'CONFIRMED').map((order) => order.id),
+      );
       if (this.knownIds && [...ids].some((id) => !this.knownIds?.has(id)) && this.sound()) {
         this.beep();
       }

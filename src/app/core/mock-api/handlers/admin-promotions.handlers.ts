@@ -101,7 +101,7 @@ export function registerAdminPromotionHandlers(router: MockRouter): void {
       if (!promotion) {
         throw notFound();
       }
-      promotion.isActive = false;
+      promotion.active = false;
       return null;
     })
     .get('/admin/promotions/:id/usages', (context) => {

@@ -30,6 +30,7 @@ import { PaymentMethodPicker } from '../../shared/components/payment-method-pick
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
 import { orderSummaryLines } from '../../shared/utils/order-lines';
+import { isTrackingToken } from '../../shared/utils/sanitize';
 
 const POLL_MS = 10_000;
 const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
@@ -65,7 +66,7 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
             class="bg-card border-line shadow-soft animate-pop mb-5 flex flex-col items-center gap-2 rounded-3xl border p-6 text-center"
           >
             <span
-              class="grid h-14 w-14 place-items-center rounded-full bg-[#4a7c4e] text-white shadow-lg"
+              class="grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white shadow-lg ring-8 ring-emerald-500/15"
             >
               <i class="pi pi-check text-2xl"></i>
             </span>
@@ -84,32 +85,44 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
 
         <div class="grid items-start gap-5 lg:grid-cols-[1fr_22rem]">
           <div class="flex flex-col gap-5">
-            <app-panel>
-              <div class="flex flex-wrap items-center justify-between gap-4">
+            <section
+              class="bg-royal animate-rise relative overflow-hidden rounded-3xl p-6 text-white shadow-[0_24px_48px_-24px_rgb(58_20_102/0.7)] md:p-7"
+            >
+              <span
+                class="pointer-events-none absolute -top-20 -right-12 h-56 w-56 rounded-full bg-white/10"
+              ></span>
+              <span
+                class="bg-accent/20 pointer-events-none absolute -bottom-24 left-1/4 h-56 w-56 rounded-full blur-2xl"
+              ></span>
+              <div class="relative flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p class="text-ink-muted text-xs">{{ i18n.t('success.queue') }}</p>
-                  <p class="font-display text-accent text-6xl leading-none font-extrabold">
+                  <p class="text-xs font-semibold tracking-widest text-white/70 uppercase">
+                    {{ i18n.t('success.queue') }}
+                  </p>
+                  <p
+                    class="font-display text-accent text-7xl leading-none font-extrabold drop-shadow-[0_6px_16px_rgb(0_0_0/0.35)] md:text-8xl"
+                  >
                     {{ current.queueNo }}
                   </p>
                 </div>
                 <div class="text-right">
                   <app-status-tag kind="order" [value]="current.status" />
-                  <p class="text-ink mt-2 text-sm font-semibold">#{{ current.orderNo }}</p>
-                  <p class="text-ink-muted text-xs">
+                  <p class="mt-2 text-sm font-semibold">#{{ current.orderNo }}</p>
+                  <p class="text-xs text-white/70">
                     {{ current.createdAt | thaiDate: i18n.lang() : 'datetime' }}
                   </p>
                 </div>
               </div>
-              <p class="bg-canvas text-ink mt-4 rounded-2xl px-4 py-3 text-sm">
-                <i class="pi pi-info-circle text-brand mr-2"></i>{{ statusHint() }}
+              <p class="relative mt-5 rounded-2xl bg-white/10 px-4 py-3 text-sm backdrop-blur">
+                <i class="pi pi-info-circle text-accent mr-2"></i>{{ statusHint() }}
               </p>
-              @if (current.customerName) {
-                <p class="text-ink-muted mt-3 text-sm">
-                  <i class="pi pi-user text-brand mr-1 text-xs"></i>
-                  {{ i18n.t('success.recipient') }}: {{ current.customerName }}
+              @if (current.customer?.nickname ?? current.guestName; as recipient) {
+                <p class="relative mt-3 text-sm text-white/80">
+                  <i class="pi pi-user text-accent mr-1 text-xs"></i>
+                  {{ i18n.t('success.recipient') }}: {{ recipient }}
                 </p>
               }
-            </app-panel>
+            </section>
 
             @if (current.status === 'PENDING_PAYMENT') {
               <app-panel [heading]="i18n.t('track.payment')">
@@ -138,7 +151,7 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
                 @if (!hasPendingSlip()) {
                   <app-payment-method-picker
                     [methods]="methods()"
-                    [amount]="current.totalAmount - current.paidAmount"
+                    [amount]="current.remainingAmount"
                     [(selected)]="method"
                   />
                   @if (methodRequiresSlip()) {
@@ -146,7 +159,8 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
                       <app-image-upload
                         mode="inline"
                         [url]="slip()"
-                        (urlChange)="slip.set($event)"
+                        (urlChange)="onSlipUrlChange($event)"
+                        (fileChange)="slipFile.set($event)"
                       />
                       <p-button
                         [label]="i18n.t('track.sendSlip')"
@@ -236,6 +250,7 @@ export class TrackOrderPage {
   protected readonly notFound = signal(false);
   protected readonly sending = signal(false);
   protected readonly slip = signal<string | null>(null);
+  protected readonly slipFile = signal<File | null>(null);
   protected readonly method = signal<string | null>(null);
 
   protected readonly methods = toSignal(
@@ -289,8 +304,15 @@ export class TrackOrderPage {
     this.messages.add({ severity: 'success', summary: this.i18n.t('track.linkCopied') });
   }
 
+  protected onSlipUrlChange(url: string | null): void {
+    this.slip.set(url);
+    if (!url) {
+      this.slipFile.set(null);
+    }
+  }
+
   protected sendSlip(order: OrderResponse): void {
-    const slip = this.slip();
+    const slip = this.slipFile();
     const method = this.method();
     if (!slip || !method) {
       return;
@@ -299,18 +321,23 @@ export class TrackOrderPage {
     this.orderApi
       .attachSlip(order.trackingToken, {
         methodCode: method,
-        amount: order.totalAmount - order.paidAmount,
-        slipUrl: slip,
+        amount: order.remainingAmount,
+        slip,
       })
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe(() => {
         this.slip.set(null);
+        this.slipFile.set(null);
         this.messages.add({ severity: 'success', summary: this.i18n.t('track.slipSent') });
         this.load(order.trackingToken, true);
       });
   }
 
   private load(token: string, background: boolean): void {
+    if (!isTrackingToken(token)) {
+      this.notFound.set(true);
+      return;
+    }
     this.orderApi.track(token, background).subscribe({
       next: (order) => this.order.set(order),
       error: () => {

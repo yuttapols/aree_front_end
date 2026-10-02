@@ -30,6 +30,7 @@ export function toCartItemRequests(lines: CartLine[]): CartItemRequest[] {
 export class CartService {
   private readonly catalog = inject(CatalogStore);
   private readonly hydrated = signal(false);
+  private hydrating = false;
 
   readonly lines = signal<CartLine[]>([]);
   readonly drawerOpen = signal(false);
@@ -52,9 +53,8 @@ export class CartService {
   constructor() {
     this.catalog.load();
     effect(() => {
-      if (this.catalog.loaded() && !this.hydrated()) {
-        this.lines.set(this.restore());
-        this.hydrated.set(true);
+      if (this.catalog.loaded() && !this.hydrating && !this.hydrated()) {
+        this.hydrate();
       }
     });
     effect(() => {
@@ -116,14 +116,33 @@ export class CartService {
     );
   }
 
-  private restore(): CartLine[] {
+  private hydrate(): void {
+    this.hydrating = true;
+    const stored = this.readStored();
+    const needsOptions = stored
+      .filter((entry) => entry.optionIds?.length)
+      .map((entry) => String(entry.itemId));
+    this.catalog.loadOptionsFor(needsOptions).subscribe({
+      complete: () => {
+        this.lines.set(this.restore(stored));
+        this.hydrated.set(true);
+        this.hydrating = false;
+      },
+    });
+  }
+
+  private readStored(): StoredLine[] {
     const stored = readJson(STORAGE_KEY);
-    if (!Array.isArray(stored)) {
-      return [];
-    }
-    return (stored as StoredLine[]).flatMap((entry) => {
+    return Array.isArray(stored) ? (stored as StoredLine[]) : [];
+  }
+
+  private restore(stored: StoredLine[]): CartLine[] {
+    return stored.flatMap((entry) => {
       const item = this.catalog.byId(String(entry.itemId));
       if (!item || item.soldOut || !(entry.qty > 0)) {
+        return [];
+      }
+      if (!item.optionsLoaded && entry.optionIds?.length) {
         return [];
       }
       const allOptions = item.optionGroups.flatMap((group) => group.options);

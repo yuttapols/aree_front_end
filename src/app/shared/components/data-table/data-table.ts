@@ -42,6 +42,7 @@ export interface TablePage {
         [first]="page() * pageSize()"
         [totalRecords]="total()"
         [rowHover]="true"
+        [stripedRows]="true"
         [scrollable]="true"
         [tableStyle]="{ 'min-width': minWidth() }"
         (onLazyLoad)="onLazyLoad($event)"
@@ -53,7 +54,7 @@ export interface TablePage {
           <tr>
             @for (column of columns(); track column.key) {
               <th
-                class="!text-xs !font-semibold"
+                class="!bg-card-muted !text-ink-muted !text-[0.7rem] !font-bold !tracking-wider uppercase"
                 [style.width]="column.width"
                 [style.text-align]="column.align ?? 'left'"
               >

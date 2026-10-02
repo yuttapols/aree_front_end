@@ -10,11 +10,12 @@ import { fallbackPalette } from '../../../core/catalog/catalog.mapper';
   selector: 'app-category-strip',
   imports: [FoodPlate],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'block' },
+  host: {
+    class:
+      'bg-canvas/85 sticky top-[4.5rem] z-30 -mx-4 block px-4 backdrop-blur-md md:mx-0 md:px-0',
+  },
   template: `
-    <div
-      class="-mx-4 flex gap-4 overflow-x-auto px-4 py-2 [scrollbar-width:none] md:mx-0 md:gap-6 md:px-0"
-    >
+    <div class="flex gap-4 overflow-x-auto py-2 [scrollbar-width:none] md:gap-6">
       @for (category of categories(); track category.id) {
         <button
           type="button"
@@ -26,7 +27,7 @@ import { fallbackPalette } from '../../../core/catalog/catalog.mapper';
             class="grid h-16 w-16 place-items-center rounded-full p-2 transition duration-200 md:h-20 md:w-20"
             [class]="
               filter.category() === category.id
-                ? 'bg-accent-soft ring-accent scale-105 ring-2'
+                ? 'bg-accent-soft ring-accent scale-105 shadow-lift ring-2'
                 : 'bg-card shadow-soft group-hover:-translate-y-1'
             "
           >

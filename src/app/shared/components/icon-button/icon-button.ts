@@ -26,12 +26,12 @@ const BADGE_CLASS: Record<ControlVariant, string> = {
       (click)="pressed.emit($event)"
     >
       <i [class]="icon()" class="text-lg"></i>
-      @if (badge()) {
+      @for (count of badgeKey(); track count) {
         <span
           class="animate-pop absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.65rem] font-bold"
           [class]="badgeClass()"
         >
-          {{ badge() }}
+          {{ count }}
         </span>
       }
     </button>
@@ -47,4 +47,5 @@ export class IconButton {
 
   protected readonly variantClass = computed(() => VARIANT_CLASS[this.variant()]);
   protected readonly badgeClass = computed(() => BADGE_CLASS[this.variant()]);
+  protected readonly badgeKey = computed(() => (this.badge() ? [this.badge()] : []));
 }

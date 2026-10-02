@@ -1,11 +1,4 @@
-import {
-  HttpErrorResponse,
-  HttpEvent,
-  HttpInterceptorFn,
-  HttpRequest,
-  HttpResponse,
-} from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { HttpErrorResponse, HttpEvent, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Observable, from, switchMap, timer } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
@@ -20,9 +13,8 @@ import { registerPublicHandlers } from './handlers/public.handlers';
 import { MockDatabase } from './mock-db';
 import { expirePoints } from './mock-domain';
 import { MockRouter } from './mock-router';
-import { MockHttpError } from './mock-utils';
+import { MockHttpError, dataUrlToBlob, isMockBlobResult } from './mock-utils';
 
-@Injectable({ providedIn: 'root' })
 export class MockBackend {
   readonly db = new MockDatabase();
   private readonly router = new MockRouter();
@@ -42,7 +34,8 @@ export class MockBackend {
   }
 
   private async execute(request: HttpRequest<unknown>): Promise<HttpEvent<unknown>> {
-    const path = request.url.slice(environment.apiBaseUrl.length).split('?')[0] ?? '';
+    const prefix = environment.apiHost + environment.apiBaseUrl;
+    const path = request.url.slice(prefix.length).split('?')[0] ?? '';
     const now = new Date();
     try {
       const route = this.router.match(request.method, path);
@@ -62,6 +55,10 @@ export class MockBackend {
         now,
       });
       this.db.save();
+      if (isMockBlobResult(data)) {
+        const blob = await dataUrlToBlob(data.dataUrl);
+        return new HttpResponse({ status: 200, body: blob, url: request.url });
+      }
       const body: ApiResponse<unknown> = {
         success: true,
         data: data ?? null,
@@ -90,10 +87,3 @@ export class MockBackend {
     }
   }
 }
-
-export const mockApiInterceptor: HttpInterceptorFn = (request, next) => {
-  if (!environment.useMockApi || !request.url.startsWith(environment.apiBaseUrl)) {
-    return next(request);
-  }
-  return inject(MockBackend).handle(request);
-};

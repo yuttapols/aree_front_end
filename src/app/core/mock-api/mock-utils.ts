@@ -22,6 +22,24 @@ export function unprocessable(code: ErrorCode, message: string): MockHttpError {
   return new MockHttpError(422, code, message);
 }
 
+export interface MockBlobResult {
+  __mockBlob: true;
+  dataUrl: string;
+}
+
+export function blobResult(dataUrl: string): MockBlobResult {
+  return { __mockBlob: true, dataUrl };
+}
+
+export function isMockBlobResult(value: unknown): value is MockBlobResult {
+  return typeof value === 'object' && value !== null && '__mockBlob' in value;
+}
+
+export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
+
 export function nextId(state: MockState, table: string): number {
   const next = (state.sequences[table] ?? 0) + 1;
   state.sequences[table] = next;
@@ -50,7 +68,11 @@ export function randomToken(): string {
 }
 
 export function uuid(): string {
-  return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : randomToken();
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const hex = randomToken();
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 export function temporaryPassword(): string {

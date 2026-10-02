@@ -14,7 +14,7 @@ import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthService } from './core/auth/auth.service';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { loadingInterceptor } from './core/http/loading.interceptor';
-import { mockApiInterceptor } from './core/mock-api/mock-backend';
+import { mockApiInterceptor } from './core/mock-api/mock-api.interceptor';
 import { RotiPreset } from './core/theme/roti-preset';
 
 export const appConfig: ApplicationConfig = {

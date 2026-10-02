@@ -1,0 +1,988 @@
+=== AdminPromotion ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  },
+  "bannerUrl": {
+   "type": "string"
+  },
+  "type": {
+   "type": "string",
+   "enum": [
+    "PERCENT",
+    "FIXED_AMOUNT",
+    "BUY_X_GET_Y",
+    "POINT_MULTIPLIER"
+   ]
+  },
+  "discountValue": {
+   "type": "number"
+  },
+  "maxDiscount": {
+   "type": "number"
+  },
+  "buyQty": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "getQty": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "minOrderAmount": {
+   "type": "number"
+  },
+  "scope": {
+   "type": "string",
+   "enum": [
+    "ORDER",
+    "PRODUCT",
+    "CATEGORY"
+   ]
+  },
+  "memberOnly": {
+   "type": "boolean"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "ALL",
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "daysOfWeek": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int32"
+   }
+  },
+  "startAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "endAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "usageLimit": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "usagePerCustomer": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "usedCount": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "showOnLanding": {
+   "type": "boolean"
+  },
+  "priority": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "productIds": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int64"
+   }
+  },
+  "categoryIds": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int64"
+   }
+  },
+  "updatedAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== PublicPromotion ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  },
+  "bannerUrl": {
+   "type": "string"
+  },
+  "type": {
+   "type": "string",
+   "enum": [
+    "PERCENT",
+    "FIXED_AMOUNT",
+    "BUY_X_GET_Y",
+    "POINT_MULTIPLIER"
+   ]
+  },
+  "discountValue": {
+   "type": "number"
+  },
+  "maxDiscount": {
+   "type": "number"
+  },
+  "buyQty": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "getQty": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "minOrderAmount": {
+   "type": "number"
+  },
+  "scope": {
+   "type": "string",
+   "enum": [
+    "ORDER",
+    "PRODUCT",
+    "CATEGORY"
+   ]
+  },
+  "memberOnly": {
+   "type": "boolean"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "ALL",
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "daysOfWeek": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int32"
+   }
+  },
+  "startAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "endAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== PromotionUpsertRequest ===
+{
+ "type": "object",
+ "properties": {
+  "code": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0,
+   "pattern": "^[A-Za-z0-9_-]{3,30}$"
+  },
+  "name": {
+   "type": "string",
+   "maxLength": 150,
+   "minLength": 0
+  },
+  "description": {
+   "type": "string",
+   "maxLength": 1000,
+   "minLength": 0
+  },
+  "bannerUrl": {
+   "type": "string",
+   "maxLength": 500,
+   "minLength": 0
+  },
+  "type": {
+   "type": "string",
+   "enum": [
+    "PERCENT",
+    "FIXED_AMOUNT",
+    "BUY_X_GET_Y",
+    "POINT_MULTIPLIER"
+   ]
+  },
+  "discountValue": {
+   "type": "number",
+   "maximum": 99999.99,
+   "minimum": 0
+  },
+  "maxDiscount": {
+   "type": "number",
+   "maximum": 99999.99,
+   "minimum": 0.01
+  },
+  "buyQty": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100,
+   "minimum": 1
+  },
+  "getQty": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100,
+   "minimum": 1
+  },
+  "minOrderAmount": {
+   "type": "number",
+   "maximum": 99999.99,
+   "minimum": 0
+  },
+  "scope": {
+   "type": "string",
+   "enum": [
+    "ORDER",
+    "PRODUCT",
+    "CATEGORY"
+   ]
+  },
+  "memberOnly": {
+   "type": "boolean"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "ALL",
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "daysOfWeek": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int32",
+    "maximum": 7,
+    "minimum": 1
+   },
+   "maxItems": 7,
+   "minItems": 0
+  },
+  "startAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "endAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "usageLimit": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 10000000,
+   "minimum": 1
+  },
+  "usagePerCustomer": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 1000,
+   "minimum": 1
+  },
+  "showOnLanding": {
+   "type": "boolean"
+  },
+  "priority": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 1000,
+   "minimum": -1000
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "productIds": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int64"
+   },
+   "maxItems": 200,
+   "minItems": 0
+  },
+  "categoryIds": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int64"
+   },
+   "maxItems": 200,
+   "minItems": 0
+  }
+ },
+ "required": [
+  "channel",
+  "discountValue",
+  "endAt",
+  "minOrderAmount",
+  "name",
+  "scope",
+  "startAt",
+  "type"
+ ]
+}
+=== Summary ===
+{
+ "type": "object",
+ "properties": {
+  "from": {
+   "type": "string",
+   "format": "date"
+  },
+  "to": {
+   "type": "string",
+   "format": "date"
+  },
+  "orderCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "grossSales": {
+   "type": "number"
+  },
+  "totalDiscount": {
+   "type": "number"
+  },
+  "netSales": {
+   "type": "number"
+  },
+  "averagePerOrder": {
+   "type": "number"
+  },
+  "memberOrderCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "walkInCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "onlineCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "cancelledCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "newMembers": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "pointsIssued": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "pointsRedeemed": {
+   "type": "integer",
+   "format": "int64"
+  }
+ }
+}
+=== TrendPoint ===
+{
+ "type": "object",
+ "properties": {
+  "period": {
+   "type": "string",
+   "format": "date"
+  },
+  "orderCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "netSales": {
+   "type": "number"
+  }
+ }
+}
+=== HourlyPoint ===
+{
+ "type": "object",
+ "properties": {
+  "hour": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "orderCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "netSales": {
+   "type": "number"
+  }
+ }
+}
+=== TopProduct ===
+{
+ "type": "object",
+ "properties": {
+  "productId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "productName": {
+   "type": "string"
+  },
+  "quantity": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "amount": {
+   "type": "number"
+  }
+ }
+}
+=== SettingResponse ===
+{
+ "type": "object",
+ "properties": {
+  "key": {
+   "type": "string"
+  },
+  "value": {
+   "type": "string"
+  },
+  "valueType": {
+   "type": "string"
+  },
+  "description": {
+   "type": "string"
+  }
+ }
+}
+=== SettingUpdateRequest ===
+{
+ "type": "object",
+ "properties": {
+  "values": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string"
+   },
+   "minProperties": 1
+  }
+ },
+ "required": [
+  "values"
+ ]
+}
+=== StaffResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "phone": {
+   "type": "string"
+  },
+  "email": {
+   "type": "string"
+  },
+  "nickname": {
+   "type": "string"
+  },
+  "role": {
+   "type": "string",
+   "enum": [
+    "CUSTOMER",
+    "STAFF",
+    "ADMIN"
+   ]
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "ACTIVE",
+    "SUSPENDED"
+   ]
+  },
+  "lastLoginAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== StaffCreateRequest ===
+{
+ "type": "object",
+ "properties": {
+  "phone": {
+   "type": "string",
+   "maxLength": 20,
+   "minLength": 0
+  },
+  "email": {
+   "type": "string",
+   "format": "email",
+   "maxLength": 150,
+   "minLength": 0
+  },
+  "password": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "nickname": {
+   "type": "string",
+   "maxLength": 50,
+   "minLength": 0
+  },
+  "role": {
+   "type": "string",
+   "enum": [
+    "CUSTOMER",
+    "STAFF",
+    "ADMIN"
+   ]
+  }
+ },
+ "required": [
+  "nickname",
+  "password",
+  "phone",
+  "role"
+ ]
+}
+=== StaffUpdateRequest ===
+{
+ "type": "object",
+ "properties": {
+  "email": {
+   "type": "string",
+   "format": "email",
+   "maxLength": 150,
+   "minLength": 0
+  },
+  "nickname": {
+   "type": "string",
+   "maxLength": 50,
+   "minLength": 0
+  },
+  "role": {
+   "type": "string",
+   "enum": [
+    "CUSTOMER",
+    "STAFF",
+    "ADMIN"
+   ]
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "ACTIVE",
+    "SUSPENDED"
+   ]
+  },
+  "newPassword": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "nickname",
+  "role",
+  "status"
+ ]
+}
+=== CustomerSummary ===
+{
+ "type": "object",
+ "properties": {
+  "userId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "memberCode": {
+   "type": "string"
+  },
+  "phone": {
+   "type": "string"
+  },
+  "email": {
+   "type": "string"
+  },
+  "nickname": {
+   "type": "string"
+  },
+  "firstName": {
+   "type": "string"
+  },
+  "lastName": {
+   "type": "string"
+  },
+  "pointsBalance": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "ACTIVE",
+    "SUSPENDED"
+   ]
+  },
+  "memberSince": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== QuickRegisterRequest ===
+{
+ "type": "object",
+ "properties": {
+  "nickname": {
+   "type": "string",
+   "maxLength": 50,
+   "minLength": 0
+  },
+  "phone": {
+   "type": "string",
+   "maxLength": 20,
+   "minLength": 0
+  },
+  "password": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "nickname",
+  "phone"
+ ]
+}
+=== QuickRegisterResponse ===
+{
+ "type": "object",
+ "properties": {
+  "customer": {
+   "$ref": "#/components/schemas/CustomerSummary"
+  },
+  "temporaryPassword": {
+   "type": "string"
+  }
+ }
+}
+=== PointSummary ===
+{
+ "type": "object",
+ "properties": {
+  "balance": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "expiringSoon": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "nextExpiryAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "expiringWindowDays": {
+   "type": "integer",
+   "format": "int32"
+  }
+ }
+}
+=== PointTransactionResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "type": {
+   "type": "string",
+   "enum": [
+    "EARN",
+    "REDEEM",
+    "ADJUST",
+    "EXPIRE",
+    "REVERSE"
+   ]
+  },
+  "points": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "balanceAfter": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "remaining": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "expiresAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "remark": {
+   "type": "string"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== ProfileResponse ===
+{
+ "type": "object",
+ "properties": {
+  "phone": {
+   "type": "string"
+  },
+  "email": {
+   "type": "string"
+  },
+  "memberCode": {
+   "type": "string"
+  },
+  "firstName": {
+   "type": "string"
+  },
+  "lastName": {
+   "type": "string"
+  },
+  "nickname": {
+   "type": "string"
+  },
+  "birthDate": {
+   "type": "string",
+   "format": "date"
+  },
+  "gender": {
+   "type": "string",
+   "enum": [
+    "MALE",
+    "FEMALE",
+    "OTHER"
+   ]
+  },
+  "avatarUrl": {
+   "type": "string"
+  },
+  "pointsBalance": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "lifetimePoints": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "memberSince": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== ProfileUpdateRequest ===
+{
+ "type": "object",
+ "properties": {
+  "firstName": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "lastName": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "nickname": {
+   "type": "string",
+   "maxLength": 50,
+   "minLength": 0
+  },
+  "birthDate": {
+   "type": "string",
+   "format": "date"
+  },
+  "gender": {
+   "type": "string",
+   "enum": [
+    "MALE",
+    "FEMALE",
+    "OTHER"
+   ]
+  },
+  "email": {
+   "type": "string",
+   "format": "email",
+   "maxLength": 150,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "nickname"
+ ]
+}
+=== OrderListItem ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderNo": {
+   "type": "string"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING_PAYMENT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED"
+   ]
+  },
+  "queueNo": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "customerName": {
+   "type": "string"
+  },
+  "member": {
+   "type": "boolean"
+  },
+  "totalAmount": {
+   "type": "number"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== UsageResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "customerId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "discountAmount": {
+   "type": "number"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== ShopInfo ===
+{
+ "type": "object",
+ "properties": {
+  "name": {
+   "type": "string"
+  },
+  "phone": {
+   "type": "string"
+  },
+  "openTime": {
+   "type": "string"
+  },
+  "closeTime": {
+   "type": "string"
+  },
+  "acceptOnlineOrder": {
+   "type": "boolean"
+  },
+  "openNow": {
+   "type": "boolean"
+  }
+ }
+}
+=== AdjustRequest ===
+{
+ "type": "object",
+ "properties": {
+  "points": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 1000000,
+   "minimum": -1000000
+  },
+  "remark": {
+   "type": "string",
+   "maxLength": 300,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "points",
+  "remark"
+ ]
+}

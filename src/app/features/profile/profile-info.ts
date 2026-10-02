@@ -26,10 +26,13 @@ import { compressImage } from '../../shared/utils/image';
 import {
   matchField,
   optionalEmail,
+  passwordComplexity,
   requiredText,
   shouldShowError,
+  textField,
   validationMessage,
 } from '../../shared/utils/validators';
+import { TEXT_LIMITS } from '../../shared/utils/sanitize';
 
 const AVATAR_TYPES = 'image/png,image/jpeg,image/webp';
 
@@ -349,10 +352,13 @@ export class ProfileInfo {
   protected readonly passwordSubmitted = signal(false);
 
   protected readonly profileForm = this.fb.group({
-    nickname: this.fb.nonNullable.control('', [requiredText]),
-    firstName: this.fb.control<string | null>(null),
-    lastName: this.fb.control<string | null>(null),
-    email: this.fb.control<string | null>(null, [optionalEmail]),
+    nickname: this.fb.nonNullable.control('', textField(TEXT_LIMITS.nickname, true)),
+    firstName: this.fb.control<string | null>(null, textField(TEXT_LIMITS.personName)),
+    lastName: this.fb.control<string | null>(null, textField(TEXT_LIMITS.personName)),
+    email: this.fb.control<string | null>(null, [
+      Validators.maxLength(TEXT_LIMITS.email),
+      optionalEmail,
+    ]),
     birthDate: this.fb.control<Date | null>(null),
     gender: this.fb.control<Gender | null>(null),
   });
@@ -360,7 +366,15 @@ export class ProfileInfo {
   protected readonly passwordForm = this.fb.nonNullable.group(
     {
       currentPassword: ['', Validators.required],
-      newPassword: ['', [Validators.required, Validators.minLength(8)]],
+      newPassword: [
+        '',
+        [
+          Validators.required,
+          Validators.minLength(8),
+          Validators.maxLength(100),
+          passwordComplexity,
+        ],
+      ],
       confirmPassword: ['', Validators.required],
     },
     { validators: matchField('newPassword', 'confirmPassword') },
@@ -473,7 +487,8 @@ export class ProfileInfo {
       .changePassword({ currentPassword: value.currentPassword, newPassword: value.newPassword })
       .pipe(finalize(() => this.savingPassword.set(false)))
       .subscribe({
-        next: () => {
+        next: (response) => {
+          this.auth.setSession(response.accessToken, response.user);
           this.passwordForm.reset();
           this.passwordSubmitted.set(false);
           this.messages.add({

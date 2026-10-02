@@ -8,6 +8,7 @@ import { ErrorCode } from '../api/models/common.model';
 import { PointTransactionResponse, PromotionResponse } from '../api/models/loyalty.model';
 import {
   AppliedPromotion,
+  BoardItem,
   CartItemRequest,
   OrderChannel,
   OrderItemOptionResponse,
@@ -16,7 +17,9 @@ import {
   OrderStatus,
   PaymentMethodResponse,
   PaymentResponse,
+  PendingPaymentItem,
   QuoteResponse,
+  TodayResponse,
 } from '../api/models/order.model';
 import {
   CustomerResponse,
@@ -73,8 +76,8 @@ export interface PricingResult {
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING_PAYMENT: ['CANCELLED'],
-  CONFIRMED: ['PREPARING', 'CANCELLED'],
-  PREPARING: ['READY'],
+  CONFIRMED: ['PREPARING', 'COMPLETED', 'CANCELLED'],
+  PREPARING: ['READY', 'COMPLETED'],
   READY: ['COMPLETED'],
   COMPLETED: [],
   CANCELLED: [],
@@ -105,7 +108,7 @@ function buildLines(state: MockState, items: CartItemRequest[]): PricedLine[] {
   }
   return items.map((item) => {
     const product = state.products.find((candidate) => candidate.id === item.productId);
-    if (!product || !product.isActive || !product.isAvailable) {
+    if (!product || !product.active || !product.available) {
       throw unprocessable('PRODUCT_UNAVAILABLE', product?.name ?? `#${item.productId}`);
     }
     const quantity = Math.floor(item.quantity);
@@ -114,14 +117,17 @@ function buildLines(state: MockState, items: CartItemRequest[]): PricedLine[] {
     }
     const groups = product.optionGroupIds
       .map((id) => state.optionGroups.find((group) => group.id === id))
-      .filter((group): group is OptionGroupResponse => !!group && group.isActive);
-    const selected = [...new Set(item.optionItemIds ?? [])];
+      .filter((group): group is OptionGroupResponse => !!group && group.active);
+    const selected = item.optionItemIds ?? [];
+    if (new Set(selected).size !== selected.length) {
+      throw unprocessable('OPTION_INVALID', 'เลือกตัวเลือกซ้ำ');
+    }
     const options: OrderItemOptionResponse[] = selected.map((optionId) => {
       const group = groups.find((candidate) =>
         candidate.items.some((option) => option.id === optionId),
       );
       const option = group?.items.find((candidate) => candidate.id === optionId);
-      if (!group || !option || !option.isAvailable) {
+      if (!group || !option || !option.available) {
         throw unprocessable('OPTION_INVALID', `${product.name}: option #${optionId}`);
       }
       return {
@@ -158,7 +164,7 @@ function buildLines(state: MockState, items: CartItemRequest[]): PricedLine[] {
 
 export function isPromotionLive(promotion: PromotionResponse, now: Date): boolean {
   return (
-    promotion.isActive &&
+    promotion.active &&
     new Date(promotion.startAt).getTime() <= now.getTime() &&
     new Date(promotion.endAt).getTime() >= now.getTime()
   );
@@ -170,7 +176,7 @@ function promotionIneligibility(
   context: { channel: OrderChannel; customer: MockUser | null; subtotal: number; now: Date },
 ): ErrorCode | null {
   const now = context.now.getTime();
-  if (!promotion.isActive || new Date(promotion.endAt).getTime() < now) {
+  if (!promotion.active || new Date(promotion.endAt).getTime() < now) {
     return 'PROMOTION_EXPIRED';
   }
   if (new Date(promotion.startAt).getTime() > now) {
@@ -667,6 +673,8 @@ export function transitionOrder(
   } else if (target === 'READY') {
     order.readyAt = at;
   } else if (target === 'COMPLETED') {
+    order.preparingAt = order.preparingAt ?? at;
+    order.readyAt = order.readyAt ?? at;
     order.completedAt = at;
     earnPoints(state, order, now, by);
   }
@@ -709,7 +717,7 @@ export function cancelOrder(
 
 export interface AddPaymentInput {
   methodCode: string;
-  amount: number;
+  amount?: number | null;
   cashReceived: number | null;
   referenceNo: string | null;
 }
@@ -725,13 +733,13 @@ export function addPayment(
     throw unprocessable('ORDER_INVALID_STATUS', order.status);
   }
   const method = state.paymentMethods.find(
-    (candidate) => candidate.code === input.methodCode && candidate.isActive,
+    (candidate) => candidate.code === input.methodCode && candidate.active,
   );
   if (!method) {
     throw badRequest('Invalid payment method', [{ field: 'methodCode', message: 'invalid' }]);
   }
-  const amount = roundMoney(input.amount);
   const remaining = roundMoney(order.totalAmount - paidAmount(state, order.id));
+  const amount = input.amount != null ? roundMoney(input.amount) : remaining;
   if (amount <= 0 || amount > remaining) {
     throw unprocessable('PAYMENT_AMOUNT_MISMATCH', `remaining ${remaining}`);
   }
@@ -770,14 +778,19 @@ export function addPayment(
 export function attachSlip(
   state: MockState,
   order: MockOrder,
-  input: { methodCode: string; amount: number; slipUrl: string },
+  input: {
+    methodCode: string;
+    amount?: number | null;
+    referenceNo?: string | null;
+    slipUrl: string;
+  },
   now: Date,
 ): MockPayment {
   if (order.status !== 'PENDING_PAYMENT') {
     throw unprocessable('ORDER_INVALID_STATUS', order.status);
   }
   const method = state.paymentMethods.find(
-    (candidate) => candidate.code === input.methodCode && candidate.isActive,
+    (candidate) => candidate.code === input.methodCode && candidate.active,
   );
   if (!method || !method.requiresSlip) {
     throw badRequest('Invalid payment method', [{ field: 'methodCode', message: 'invalid' }]);
@@ -785,15 +798,20 @@ export function attachSlip(
   if (!input.slipUrl) {
     throw unprocessable('SLIP_REQUIRED', 'slip is required');
   }
+  if (method.requiresReference && !input.referenceNo?.trim()) {
+    throw unprocessable('REFERENCE_REQUIRED', 'reference is required');
+  }
   const remaining = roundMoney(order.totalAmount - paidAmount(state, order.id));
+  const amount =
+    input.amount != null && input.amount > 0 ? Math.min(input.amount, remaining) : remaining;
   const payment: MockPayment = {
     id: nextId(state, 'payment'),
     orderId: order.id,
     methodCode: method.code,
-    amount: roundMoney(input.amount > 0 ? Math.min(input.amount, remaining) : remaining),
+    amount: roundMoney(amount),
     cashReceived: null,
     changeAmount: null,
-    referenceNo: null,
+    referenceNo: input.referenceNo?.trim() || null,
     slipUrl: input.slipUrl,
     status: 'PENDING',
     paidAt: null,
@@ -842,60 +860,6 @@ export function verifyPayment(
   }
 }
 
-export function settleOrder(
-  state: MockState,
-  order: MockOrder,
-  methodCode: string,
-  staff: MockUser,
-  now: Date,
-): void {
-  if (!['PENDING_PAYMENT', 'CONFIRMED', 'PREPARING', 'READY'].includes(order.status)) {
-    throw unprocessable('ORDER_INVALID_STATUS', order.status);
-  }
-  const pending = state.payments.filter(
-    (candidate) => candidate.orderId === order.id && candidate.status === 'PENDING',
-  );
-  for (const payment of pending) {
-    if (payment.methodCode === methodCode) {
-      payment.status = 'PAID';
-      payment.paidAt = now.toISOString();
-      payment.verifiedBy = staff.id;
-    } else {
-      payment.status = 'REJECTED';
-      payment.rejectReason = 'replaced';
-    }
-  }
-  const remaining = roundMoney(order.totalAmount - paidAmount(state, order.id));
-  if (remaining > 0) {
-    addPayment(
-      state,
-      order,
-      {
-        methodCode,
-        amount: remaining,
-        cashReceived: methodCode === 'CASH' ? remaining : null,
-        referenceNo: null,
-      },
-      staff,
-      now,
-    );
-  }
-  confirmIfPaid(state, order, now);
-  completeOrder(state, order, now, staff.nickname);
-}
-
-export function completeOrder(state: MockState, order: MockOrder, now: Date, by: string): void {
-  if (!['CONFIRMED', 'PREPARING', 'READY'].includes(order.status)) {
-    throw unprocessable('ORDER_INVALID_STATUS', `${order.status} → COMPLETED`);
-  }
-  const at = now.toISOString();
-  order.preparingAt = order.preparingAt ?? at;
-  order.readyAt = order.readyAt ?? at;
-  order.completedAt = at;
-  order.status = 'COMPLETED';
-  earnPoints(state, order, now, by);
-}
-
 function customerFullName(user: MockUser | null): string | null {
   if (!user) {
     return null;
@@ -921,6 +885,7 @@ export function toMe(user: MockUser): MeResponse {
     pointsBalance: user.profile?.pointsBalance ?? 0,
     lifetimePoints: user.profile?.lifetimePoints ?? 0,
     createdAt: user.createdAt,
+    passwordChangeRequired: user.passwordChangeRequired,
   };
 }
 
@@ -970,19 +935,39 @@ export function toPaymentMethod(
   return {
     ...method,
     promptpayId: method.code === 'PROMPTPAY' ? state.settings.promptpayId || null : null,
+    bankAccount: method.code === 'TRANSFER' ? state.settings.bankAccount || null : null,
   };
 }
 
 export function toPayment(state: MockState, payment: MockPayment): PaymentResponse {
-  const order = state.orders.find((candidate) => candidate.id === payment.orderId);
   const method = state.paymentMethods.find((candidate) => candidate.code === payment.methodCode);
   const verifier = findUser(state, payment.verifiedBy);
   return {
-    ...payment,
-    orderNo: order?.orderNo ?? '',
+    id: payment.id,
+    orderId: payment.orderId,
+    methodCode: payment.methodCode,
     methodName: method?.name ?? payment.methodCode,
     methodNameEn: method?.nameEn ?? payment.methodCode,
+    amount: payment.amount,
+    cashReceived: payment.cashReceived,
+    changeAmount: payment.changeAmount,
+    referenceNo: payment.referenceNo,
+    hasSlip: payment.slipUrl !== null,
+    status: payment.status,
+    paidAt: payment.paidAt,
+    rejectReason: payment.rejectReason,
     verifiedBy: verifier?.nickname ?? null,
+    createdAt: payment.createdAt,
+  };
+}
+
+export function toPendingPaymentItem(state: MockState, payment: MockPayment): PendingPaymentItem {
+  const order = state.orders.find((candidate) => candidate.id === payment.orderId);
+  return {
+    payment: toPayment(state, payment),
+    orderId: payment.orderId,
+    orderNo: order?.orderNo ?? '',
+    orderStatus: order?.status ?? 'CANCELLED',
     orderTotal: order?.totalAmount ?? 0,
     customerName: order ? orderCustomerName(state, order) : null,
   };
@@ -1001,11 +986,13 @@ export function toOrder(state: MockState, order: MockOrder): OrderResponse {
     trackingToken: order.trackingToken,
     channel: order.channel,
     status: order.status,
-    customerId: order.customerId,
-    customerName: orderCustomerName(state, order),
-    customerFullName: customerFullName(customer),
-    customerPhone: customer?.phone ?? order.guestPhone,
-    memberCode: customer?.profile?.memberCode ?? null,
+    customer: customer
+      ? {
+          id: customer.id,
+          nickname: customerFullName(customer) ?? customer.nickname,
+          memberCode: customer.profile?.memberCode ?? null,
+        }
+      : null,
     guestName: order.guestName,
     guestPhone: order.guestPhone,
     items: order.items,
@@ -1013,13 +1000,14 @@ export function toOrder(state: MockState, order: MockOrder): OrderResponse {
     promotionDiscount: order.promotionDiscount,
     pointDiscount: order.pointDiscount,
     totalAmount: order.totalAmount,
+    paidAmount: paidAmount(state, order.id),
+    remainingAmount: roundMoney(order.totalAmount - paidAmount(state, order.id)),
     pointsRedeemed: order.pointsRedeemed,
     pointsEarned: order.pointsEarned,
     pointsToEarn: order.pointsToEarn,
-    paidAmount: paidAmount(state, order.id),
     note: order.note,
     queueNo: order.queueNo,
-    cashierName: cashier?.nickname ?? null,
+    cashierId: cashier?.id ?? null,
     paymentMethodCode: order.paymentMethodCode,
     payments: state.payments
       .filter((payment) => payment.orderId === order.id)
@@ -1057,7 +1045,7 @@ export function toCategory(state: MockState, category: MockCategory): CategoryRe
   return {
     ...category,
     productCount: state.products.filter(
-      (product) => product.categoryId === category.id && product.isActive,
+      (product) => product.categoryId === category.id && product.active,
     ).length,
   };
 }
@@ -1074,10 +1062,10 @@ export function toPublicProduct(
 ): PublicProductResponse {
   return {
     ...toProduct(state, product),
+    hasOptions: product.optionGroupIds.length > 0,
     optionGroups: product.optionGroupIds
       .map((id) => state.optionGroups.find((group) => group.id === id))
-      .filter((group): group is OptionGroupResponse => !!group && group.isActive)
-      .map((group) => ({ ...group, items: group.items.filter((item) => item.isAvailable) })),
+      .filter((group): group is OptionGroupResponse => !!group && group.active),
     promotionIds: state.promotions
       .filter(
         (promotion) =>
@@ -1104,7 +1092,7 @@ export function toShopInfo(state: MockState, now: Date): ShopInfoResponse {
     openTime: settings.openTime,
     closeTime: settings.closeTime,
     acceptOnlineOrder: settings.acceptOnlineOrder,
-    isOpenNow: minutes >= open && minutes < close,
+    openNow: minutes >= open && minutes < close,
   };
 }
 

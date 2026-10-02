@@ -14,11 +14,13 @@ export interface PaymentMethodResponse {
   nameEn: string;
   requiresSlip: boolean;
   requiresReference: boolean;
-  availableOnline: boolean;
-  isActive: boolean;
+  allowOnline: boolean;
+  active: boolean;
   sortOrder: number;
   instruction: string;
+  icon: string | null;
   promptpayId: string | null;
+  bankAccount: string | null;
 }
 
 export interface PaymentMethodUpsertRequest {
@@ -27,9 +29,11 @@ export interface PaymentMethodUpsertRequest {
   nameEn: string;
   requiresSlip: boolean;
   requiresReference: boolean;
-  availableOnline: boolean;
-  isActive: boolean;
+  allowOnline: boolean;
+  active: boolean;
   instruction: string;
+  icon: string | null;
+  sortOrder: number;
 }
 
 export interface CartItemRequest {
@@ -41,6 +45,13 @@ export interface CartItemRequest {
 
 export interface QuoteRequest {
   channel: OrderChannel;
+  items: CartItemRequest[];
+  promoCode?: string | null;
+  redeemPoints?: number | null;
+  customerPhone?: string | null;
+}
+
+export interface AdminQuoteRequest {
   items: CartItemRequest[];
   promoCode?: string | null;
   redeemPoints?: number | null;
@@ -97,7 +108,6 @@ export interface QuoteResponse {
 export interface PaymentResponse {
   id: number;
   orderId: number;
-  orderNo: string;
   methodCode: PaymentMethodCode;
   methodName: string;
   methodNameEn: string;
@@ -105,14 +115,27 @@ export interface PaymentResponse {
   cashReceived: number | null;
   changeAmount: number | null;
   referenceNo: string | null;
-  slipUrl: string | null;
+  hasSlip: boolean;
   status: PaymentStatus;
   paidAt: string | null;
   rejectReason: string | null;
   verifiedBy: string | null;
   createdAt: string;
+}
+
+export interface PendingPaymentItem {
+  payment: PaymentResponse;
+  orderId: number;
+  orderNo: string;
+  orderStatus: OrderStatus;
   orderTotal: number;
   customerName: string | null;
+}
+
+export interface OrderCustomerRef {
+  id: number;
+  nickname: string;
+  memberCode?: string | null;
 }
 
 export interface OrderResponse {
@@ -121,11 +144,7 @@ export interface OrderResponse {
   trackingToken: string;
   channel: OrderChannel;
   status: OrderStatus;
-  customerId: number | null;
-  customerName: string | null;
-  customerFullName: string | null;
-  customerPhone: string | null;
-  memberCode: string | null;
+  customer: OrderCustomerRef | null;
   guestName: string | null;
   guestPhone: string | null;
   items: OrderItemResponse[];
@@ -133,13 +152,14 @@ export interface OrderResponse {
   promotionDiscount: number;
   pointDiscount: number;
   totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
   pointsRedeemed: number;
   pointsEarned: number;
   pointsToEarn: number;
-  paidAmount: number;
   note: string | null;
   queueNo: number;
-  cashierName: string | null;
+  cashierId: number | null;
   paymentMethodCode: PaymentMethodCode | null;
   payments: PaymentResponse[];
   appliedPromotions: AppliedPromotion[];
@@ -165,6 +185,7 @@ export interface CreateOnlineOrderRequest {
 export interface CreatePosOrderRequest {
   items: CartItemRequest[];
   customerPhone: string | null;
+  guestName?: string | null;
   note: string | null;
   promoCode: string | null;
   redeemPoints: number | null;
@@ -172,15 +193,16 @@ export interface CreatePosOrderRequest {
 
 export interface AddPaymentRequest {
   methodCode: PaymentMethodCode;
-  amount: number;
+  amount?: number | null;
   cashReceived: number | null;
   referenceNo: string | null;
 }
 
 export interface AttachSlipRequest {
   methodCode: PaymentMethodCode;
-  amount: number;
-  slipUrl: string;
+  amount?: number | null;
+  referenceNo?: string | null;
+  slip: File;
 }
 
 export interface VerifyPaymentRequest {
@@ -205,24 +227,28 @@ export interface OrderQuery {
   keyword?: string | null;
 }
 
-export interface KitchenBoardResponse {
-  confirmed: OrderResponse[];
-  preparing: OrderResponse[];
-  ready: OrderResponse[];
+export interface BoardItem {
+  id: number;
+  orderNo: string;
+  channel: OrderChannel;
+  status: OrderStatus;
+  queueNo: number;
+  customerName: string | null;
+  items: OrderItemResponse[];
+  note: string | null;
+  createdAt: string;
+  confirmedAt: string | null;
 }
 
+export type KitchenBoardResponse = BoardItem[];
+
 export interface TodayResponse {
-  orderCount: number;
-  salesAmount: number;
+  date: string;
+  ordersByStatus: Partial<Record<OrderStatus, number>>;
   completedCount: number;
-  cancelledCount: number;
+  netSales: number;
   pendingPayments: number;
-  queueWaiting: number;
-  onlineCount: number;
-  walkInCount: number;
-  newMembers: number;
-  queue: OrderResponse[];
-  latestOrders: OrderResponse[];
+  lastQueueNo: number | null;
 }
 
 export interface ReceiptResponse {
@@ -230,4 +256,6 @@ export interface ReceiptResponse {
   shopPhone: string;
   address: string;
   order: OrderResponse;
+  cashierName: string | null;
+  printedAt: string;
 }

@@ -1,21 +1,25 @@
 import {
   AddPaymentRequest,
+  AdminQuoteRequest,
+  BoardItem,
   CancelOrderRequest,
   CreatePosOrderRequest,
+  OrderStatus,
   OrderStatusUpdateRequest,
+  TodayResponse,
   VerifyPaymentRequest,
 } from '../../api/models/order.model';
 import {
   addPayment,
   cancelOrder,
-  completeOrder,
-  settleOrder,
   createOrder,
   findCustomerByPhone,
+  findUser,
   priceCart,
   requireOrderById,
   toOrder,
   toPayment,
+  toPendingPaymentItem,
   transitionOrder,
   verifyPayment,
 } from '../mock-domain';
@@ -28,6 +32,7 @@ import {
   requireStaff,
 } from '../mock-router';
 import {
+  blobResult,
   dateKey,
   normalizePhone,
   notFound,
@@ -36,7 +41,7 @@ import {
   unprocessable,
 } from '../mock-utils';
 
-const ACTIVE_BOARD = ['CONFIRMED', 'PREPARING', 'READY'];
+const ACTIVE_BOARD: OrderStatus[] = ['CONFIRMED', 'PREPARING', 'READY'];
 
 export function registerAdminOrderHandlers(router: MockRouter): void {
   router
@@ -73,6 +78,20 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
       });
       return toOrder(context.state, order);
     })
+    .post('/admin/orders/quote', (context) => {
+      const request = bodyOf<AdminQuoteRequest>(context);
+      const customer = request.customerPhone
+        ? findCustomerByPhone(context.state, normalizePhone(request.customerPhone))
+        : null;
+      return priceCart(context.state, {
+        channel: 'WALK_IN',
+        items: request.items ?? [],
+        promoCode: request.promoCode,
+        redeemPoints: request.redeemPoints,
+        customer,
+        now: context.now,
+      }).quote;
+    })
     .get('/admin/orders', (context) => {
       requireStaff(context);
       const status = queryString(context, 'status');
@@ -90,7 +109,7 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
         .filter(
           (order) =>
             !keyword ||
-            `${order.orderNo} ${order.customerName ?? ''} ${order.customerPhone ?? ''} ${order.queueNo}`
+            `${order.orderNo} ${order.customer?.nickname ?? ''} ${order.guestName ?? ''} ${order.guestPhone ?? ''} ${order.queueNo}`
               .toLowerCase()
               .includes(keyword),
         )
@@ -99,15 +118,25 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
     })
     .get('/admin/orders/board', (context) => {
       requireStaff(context);
-      const active = context.state.orders
+      const board: BoardItem[] = context.state.orders
         .filter((order) => ACTIVE_BOARD.includes(order.status))
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .map((order) => toOrder(context.state, order));
-      return {
-        confirmed: active.filter((order) => order.status === 'CONFIRMED'),
-        preparing: active.filter((order) => order.status === 'PREPARING'),
-        ready: active.filter((order) => order.status === 'READY'),
-      };
+        .map((order) => {
+          const full = toOrder(context.state, order);
+          return {
+            id: full.id,
+            orderNo: full.orderNo,
+            channel: full.channel,
+            status: full.status,
+            queueNo: full.queueNo,
+            customerName: full.customer?.nickname ?? full.guestName,
+            items: full.items,
+            note: full.note,
+            createdAt: full.createdAt,
+            confirmedAt: full.confirmedAt,
+          };
+        });
+      return board;
     })
     .get('/admin/orders/:id', (context) => {
       requireStaff(context);
@@ -116,11 +145,18 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
     .get('/admin/orders/:id/receipt', (context) => {
       requireStaff(context);
       const settings = context.state.settings;
+      const full = toOrder(
+        context.state,
+        requireOrderById(context.state, numberParam(context, 'id')),
+      );
+      const cashier = full.cashierId ? findUser(context.state, full.cashierId) : null;
       return {
         shopName: settings.shopName,
         shopPhone: settings.shopPhone,
         address: settings.address,
-        order: toOrder(context.state, requireOrderById(context.state, numberParam(context, 'id'))),
+        order: full,
+        cashierName: cashier?.nickname ?? null,
+        printedAt: context.now.toISOString(),
       };
     })
     .patch('/admin/orders/:id/status', (context) => {
@@ -154,31 +190,23 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
       addPayment(context.state, order, request, staff, context.now);
       return toOrder(context.state, order);
     })
-    .post('/admin/orders/:id/settle', (context) => {
-      const staff = requireStaff(context);
-      const order = requireOrderById(context.state, numberParam(context, 'id'));
-      settleOrder(
-        context.state,
-        order,
-        bodyOf<{ methodCode: string }>(context).methodCode,
-        staff,
-        context.now,
-      );
-      return toOrder(context.state, order);
-    })
-    .post('/admin/orders/:id/complete', (context) => {
-      const staff = requireStaff(context);
-      const order = requireOrderById(context.state, numberParam(context, 'id'));
-      completeOrder(context.state, order, context.now, staff.nickname);
-      return toOrder(context.state, order);
-    })
     .get('/admin/payments', (context) => {
       requireStaff(context);
       const status = queryString(context, 'status');
       return context.state.payments
         .filter((payment) => !status || payment.status === status)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .map((payment) => toPayment(context.state, payment));
+        .map((payment) => toPendingPaymentItem(context.state, payment));
+    })
+    .get('/admin/payments/:id/slip', (context) => {
+      requireStaff(context);
+      const payment = context.state.payments.find(
+        (candidate) => candidate.id === numberParam(context, 'id'),
+      );
+      if (!payment?.slipUrl) {
+        throw notFound('Slip not found');
+      }
+      return blobResult(payment.slipUrl);
     })
     .patch('/admin/payments/:id/verify', (context) => {
       const staff = requireStaff(context);
@@ -206,28 +234,20 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
         (order) => dateKey(new Date(order.createdAt)) === today,
       );
       const completed = orders.filter((order) => order.status === 'COMPLETED');
-      return {
-        orderCount: orders.filter((order) => order.status !== 'CANCELLED').length,
-        salesAmount: roundMoney(completed.reduce((total, order) => total + order.totalAmount, 0)),
+      const ordersByStatus = orders.reduce<Partial<Record<OrderStatus, number>>>((acc, order) => {
+        acc[order.status] = (acc[order.status] ?? 0) + 1;
+        return acc;
+      }, {});
+      const lastQueue = [...orders].sort((a, b) => b.queueNo - a.queueNo)[0] ?? null;
+      const response: TodayResponse = {
+        date: today,
+        ordersByStatus,
         completedCount: completed.length,
-        cancelledCount: orders.filter((order) => order.status === 'CANCELLED').length,
+        netSales: roundMoney(completed.reduce((total, order) => total + order.totalAmount, 0)),
         pendingPayments: context.state.payments.filter((payment) => payment.status === 'PENDING')
           .length,
-        queueWaiting: context.state.orders.filter((order) => ACTIVE_BOARD.includes(order.status))
-          .length,
-        onlineCount: orders.filter((order) => order.channel === 'ONLINE').length,
-        walkInCount: orders.filter((order) => order.channel === 'WALK_IN').length,
-        newMembers: context.state.users.filter(
-          (user) => user.profile !== null && dateKey(new Date(user.createdAt)) === today,
-        ).length,
-        queue: context.state.orders
-          .filter((order) => ['PENDING_PAYMENT', ...ACTIVE_BOARD].includes(order.status))
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-          .map((order) => toOrder(context.state, order)),
-        latestOrders: [...orders]
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .slice(0, 5)
-          .map((order) => toOrder(context.state, order)),
+        lastQueueNo: lastQueue?.queueNo ?? null,
       };
+      return response;
     });
 }

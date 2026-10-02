@@ -11,7 +11,7 @@ export const SEED_CATEGORIES: MockCategory[] = [
     description: 'โรตีกรอบ ราดหน้าหวาน',
     icon: 'pi pi-heart',
     sortOrder: 1,
-    isActive: true,
+    active: true,
     palette: { base: '#f3e2b8', main: '#6b3a1f', accent: '#f1d36b', garnish: '#fff6df' },
   },
   {
@@ -22,7 +22,7 @@ export const SEED_CATEGORIES: MockCategory[] = [
     description: 'โรตีและมะตะบะสายคาว',
     icon: 'pi pi-star',
     sortOrder: 2,
-    isActive: true,
+    active: true,
     palette: { base: '#efdcbc', main: '#c96b2c', accent: '#f0b36a', garnish: '#4f7a34' },
   },
   {
@@ -33,10 +33,38 @@ export const SEED_CATEGORIES: MockCategory[] = [
     description: 'ชา กาแฟ และเครื่องดื่มเย็น',
     icon: 'pi pi-sun',
     sortOrder: 3,
-    isActive: true,
+    active: true,
     palette: { base: '#f3dcc0', main: '#e39343', accent: '#f6dfc0', garnish: '#b85f2a' },
   },
+  {
+    id: 4,
+    name: 'โรตี',
+    nameEn: 'Roti',
+    slug: 'roti',
+    description: 'เมนูโรตี 5 ดาว 15 รส',
+    icon: 'pi pi-star',
+    sortOrder: 0,
+    active: true,
+    palette: { base: '#f5e1b3', main: '#d9a441', accent: '#f7c873', garnish: '#7a4a1e' },
+  },
 ];
+
+const TOPPING_GROUP_ID = 4;
+const TOPPINGS: [string, string, number][] = [
+  ['แยมบลูเบอร์รี่', 'Blueberry jam', 20],
+  ['แยมวนิลา', 'Vanilla jam', 20],
+  ['แยมช็อกโกแลต', 'Chocolate jam', 20],
+  ['แยมส้ม', 'Orange jam', 20],
+  ['สังขยาใบเตย', 'Pandan custard', 20],
+  ['แยมสับปะรด', 'Pineapple jam', 20],
+  ['แยมสตรอว์เบอร์รี่', 'Strawberry jam', 20],
+  ['โอวัลตินลูกเกด', 'Ovaltine & raisins', 25],
+  ['น้ำพริกเผา', 'Chili paste', 20],
+  ['เม็ดเจ็ดสี', 'Rainbow sprinkles', 20],
+  ['เนยสด', 'Fresh butter', 20],
+  ['ไมโล', 'Milo', 20],
+];
+const TOPPING_FIRST_ITEM_ID = 100;
 
 export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
   {
@@ -45,7 +73,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
     nameEn: 'Extra toppings',
     minSelect: 0,
     maxSelect: 4,
-    isActive: true,
+    active: true,
     sortOrder: 1,
     items: [
       {
@@ -53,7 +81,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'กล้วยเพิ่ม',
         nameEn: 'Extra banana',
         extraPrice: 10,
-        isAvailable: true,
+        available: true,
         sortOrder: 1,
       },
       {
@@ -61,7 +89,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'ไข่เพิ่ม',
         nameEn: 'Extra egg',
         extraPrice: 10,
-        isAvailable: true,
+        available: true,
         sortOrder: 2,
       },
       {
@@ -69,7 +97,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'ไอศกรีม',
         nameEn: 'Ice cream',
         extraPrice: 15,
-        isAvailable: true,
+        available: true,
         sortOrder: 3,
       },
       {
@@ -77,7 +105,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'ชีสแผ่น',
         nameEn: 'Cheese slice',
         extraPrice: 15,
-        isAvailable: true,
+        available: true,
         sortOrder: 4,
       },
     ],
@@ -88,7 +116,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
     nameEn: 'Sweetness',
     minSelect: 1,
     maxSelect: 1,
-    isActive: true,
+    active: true,
     sortOrder: 2,
     items: [
       {
@@ -96,7 +124,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'หวานปกติ',
         nameEn: 'Regular',
         extraPrice: 0,
-        isAvailable: true,
+        available: true,
         sortOrder: 1,
       },
       {
@@ -104,7 +132,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'หวานน้อย',
         nameEn: 'Less sweet',
         extraPrice: 0,
-        isAvailable: true,
+        available: true,
         sortOrder: 2,
       },
       {
@@ -112,7 +140,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'ไม่หวาน',
         nameEn: 'No sugar',
         extraPrice: 0,
-        isAvailable: true,
+        available: true,
         sortOrder: 3,
       },
     ],
@@ -123,7 +151,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
     nameEn: 'Add-ons',
     minSelect: 0,
     maxSelect: 2,
-    isActive: true,
+    active: true,
     sortOrder: 3,
     items: [
       {
@@ -131,7 +159,7 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'ไข่มุก',
         nameEn: 'Tapioca pearls',
         extraPrice: 10,
-        isAvailable: true,
+        available: true,
         sortOrder: 1,
       },
       {
@@ -139,10 +167,27 @@ export const SEED_OPTION_GROUPS: OptionGroupResponse[] = [
         name: 'แก้วใหญ่',
         nameEn: 'Large cup',
         extraPrice: 10,
-        isAvailable: true,
+        available: true,
         sortOrder: 2,
       },
     ],
+  },
+  {
+    id: TOPPING_GROUP_ID,
+    name: 'ท็อปปิ้ง',
+    nameEn: 'Toppings',
+    minSelect: 0,
+    maxSelect: 10,
+    active: true,
+    sortOrder: 4,
+    items: TOPPINGS.map(([name, nameEn, extraPrice], index) => ({
+      id: TOPPING_FIRST_ITEM_ID + index,
+      name,
+      nameEn,
+      extraPrice,
+      available: true,
+      sortOrder: index + 1,
+    })),
   },
 ];
 
@@ -165,6 +210,62 @@ interface SeedProduct {
 
 const ROTI_GROUPS = [1];
 const DRINK_GROUPS = [2, 3];
+const DRINK_CATEGORY_ID = 3;
+const DEFAULT_ROTI_CATEGORY_ID = 4;
+const DEFAULT_ROTI_PALETTE: PlatePaletteDto = {
+  base: '#f5e1b3',
+  main: '#d9a441',
+  accent: '#f7c873',
+  garnish: '#7a4a1e',
+};
+
+function defaultRoti(
+  code: string,
+  name: string,
+  nameEn: string,
+  price: number,
+  recommended: boolean,
+  description = '',
+  descriptionEn = '',
+): SeedProduct {
+  return {
+    code,
+    categoryId: DEFAULT_ROTI_CATEGORY_ID,
+    name,
+    nameEn,
+    description,
+    descriptionEn,
+    price,
+    recommended,
+    rating: 0,
+    reviews: 0,
+    palette: DEFAULT_ROTI_PALETTE,
+  };
+}
+
+const DEFAULT_ROTI_MENU: SeedProduct[] = [
+  defaultRoti('R5D-PLAIN', 'ธรรมดา', 'Plain roti', 15, false),
+  defaultRoti('R5D-EGG', 'โรตีใส่ไข่', 'Roti with egg', 25, true),
+  defaultRoti('R5D-PLAIN-SP', 'ธรรมดาพิเศษ', 'Plain roti special', 40, false),
+  defaultRoti('R5D-EGG-SP', 'โรตีใส่ไข่ พิเศษ', 'Roti with egg special', 35, false),
+  defaultRoti('R5D-EGG-BANANA', 'โรตีใส่ไข่ ใส่กล้วย', 'Roti with egg & banana', 40, true),
+  defaultRoti(
+    'R5D-SIGNATURE',
+    'โรตี 5 ดาว 15 รส',
+    '5-Star 15-Flavor Roti',
+    45,
+    true,
+    'ใส่ไข่ ใส่กล้วย ใส่แยม ใส่ช็อกโกแลต — เมนูซิกเนเจอร์ของร้าน',
+    'Egg, banana, jam and chocolate — our signature roti',
+  ),
+];
+
+function optionGroupsFor(categoryId: number): number[] {
+  if (categoryId === DRINK_CATEGORY_ID) {
+    return DRINK_GROUPS;
+  }
+  return categoryId === DEFAULT_ROTI_CATEGORY_ID ? [TOPPING_GROUP_ID] : ROTI_GROUPS;
+}
 
 const PRODUCTS: SeedProduct[] = [
   {
@@ -325,7 +426,7 @@ const PRODUCTS: SeedProduct[] = [
   },
 ];
 
-export const SEED_PRODUCTS = PRODUCTS.map((product, index) => ({
+export const SEED_PRODUCTS = [...PRODUCTS, ...DEFAULT_ROTI_MENU].map((product, index) => ({
   id: index + 1,
   categoryId: product.categoryId,
   code: product.code,
@@ -336,13 +437,13 @@ export const SEED_PRODUCTS = PRODUCTS.map((product, index) => ({
   price: product.price,
   originalPrice: product.originalPrice ?? null,
   imageUrl: null,
-  isAvailable: !product.soldOut,
-  isRecommended: product.recommended ?? false,
-  isActive: true,
+  available: !product.soldOut,
+  recommended: product.recommended ?? false,
+  active: true,
   sortOrder: index + 1,
   badge: product.badge ?? null,
   rating: product.rating,
   reviews: product.reviews,
   palette: product.palette,
-  optionGroupIds: product.categoryId === 3 ? DRINK_GROUPS : ROTI_GROUPS,
+  optionGroupIds: optionGroupsFor(product.categoryId),
 }));

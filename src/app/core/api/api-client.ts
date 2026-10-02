@@ -11,7 +11,7 @@ export type QueryParams = Record<string, string | number | boolean | null | unde
 @Injectable({ providedIn: 'root' })
 export class ApiClient {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = environment.apiBaseUrl;
+  private readonly baseUrl = environment.apiHost + environment.apiBaseUrl;
 
   get<T>(path: string, params?: QueryParams, options?: RequestOptions): Observable<T> {
     return this.unwrap(
@@ -63,6 +63,14 @@ export class ApiClient {
     const form = new FormData();
     form.append('file', file);
     return this.post<FileUploadResponse>(path, form, options);
+  }
+
+  getBlob(path: string, options?: RequestOptions): Observable<Blob> {
+    return this.http.get(this.url(path), {
+      context: toHttpContext(options),
+      withCredentials: true,
+      responseType: 'blob',
+    });
   }
 
   private url(path: string): string {

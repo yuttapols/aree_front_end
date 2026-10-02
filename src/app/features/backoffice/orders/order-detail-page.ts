@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -13,7 +14,7 @@ import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
-import { finalize } from 'rxjs';
+import { catchError, finalize, of } from 'rxjs';
 
 import { OrderResponse, OrderStatus } from '../../../core/api/models/order.model';
 import { OrderApi } from '../../../core/api/services/order.api';
@@ -149,14 +150,15 @@ const NEXT_STATUS: Partial<
                 <ul class="divide-line divide-y">
                   @for (payment of current.payments; track payment.id) {
                     <li class="flex flex-wrap items-center gap-3 py-3">
-                      @if (payment.slipUrl) {
-                        <a [href]="payment.slipUrl" target="_blank" rel="noopener">
-                          <img
-                            [src]="payment.slipUrl"
-                            alt="slip"
-                            class="border-line h-14 w-10 rounded-lg border object-cover"
-                          />
-                        </a>
+                      @if (payment.hasSlip) {
+                        <button
+                          type="button"
+                          class="bg-card-muted border-line grid h-14 w-10 shrink-0 place-items-center rounded-lg border"
+                          [disabled]="loadingSlip() === payment.id"
+                          (click)="viewSlip(payment.id)"
+                        >
+                          <i class="pi pi-image text-ink-muted"></i>
+                        </button>
                       }
                       <div class="min-w-0 flex-1 text-sm">
                         <p class="text-ink font-semibold">
@@ -194,31 +196,29 @@ const NEXT_STATUS: Partial<
               <div class="flex flex-col gap-3">
                 <app-summary-row
                   [label]="i18n.t('checkout.recipient')"
-                  [value]="current.customerName ?? i18n.t('bo.walkInGuest')"
+                  [value]="
+                    current.customer?.nickname ?? current.guestName ?? i18n.t('bo.walkInGuest')
+                  "
                 />
-                <app-summary-row
-                  [label]="i18n.t('register.phone')"
-                  [value]="phone(current.customerPhone) || '-'"
-                />
-                @if (current.memberCode) {
+                @if (current.guestPhone) {
+                  <app-summary-row
+                    [label]="i18n.t('register.phone')"
+                    [value]="phone(current.guestPhone) || '-'"
+                  />
+                }
+                @if (current.customer?.memberCode; as memberCode) {
                   <app-summary-row
                     [label]="i18n.t('bo.customers.memberCode')"
-                    [value]="current.memberCode"
+                    [value]="memberCode"
                   />
                   <a
-                    [routerLink]="['/backoffice/customers', current.customerId]"
+                    [routerLink]="['/backoffice/customers', current.customer?.id]"
                     class="text-brand text-sm font-semibold hover:underline"
                   >
                     {{ i18n.t('bo.customers.view') }}
                   </a>
                 }
                 <app-summary-row [label]="i18n.t('success.queue')" [value]="'' + current.queueNo" />
-                @if (current.cashierName) {
-                  <app-summary-row
-                    [label]="i18n.t('receipt.cashier')"
-                    [value]="current.cashierName"
-                  />
-                }
               </div>
             </app-panel>
             <app-panel [heading]="i18n.t('track.timeline')">
@@ -271,6 +271,20 @@ const NEXT_STATUS: Partial<
       (closed)="paying.set(null)"
     />
     <app-receipt-dialog [orderId]="receiptId()" (closed)="receiptId.set(null)" />
+
+    <p-dialog
+      [visible]="slipUrl() !== null"
+      (visibleChange)="!$event && closeSlip()"
+      [modal]="true"
+      [draggable]="false"
+      [header]="i18n.t('track.payment')"
+      [style]="{ width: '26rem' }"
+      [breakpoints]="{ '640px': '94vw' }"
+    >
+      @if (slipUrl(); as url) {
+        <img [src]="url" alt="slip" class="w-full rounded-xl" />
+      }
+    </p-dialog>
   `,
 })
 export class OrderDetailPage {
@@ -292,6 +306,8 @@ export class OrderDetailPage {
   protected readonly cancelReason = signal('');
   protected readonly paying = signal<OrderResponse | null>(null);
   protected readonly receiptId = signal<number | null>(null);
+  protected readonly loadingSlip = signal<number | null>(null);
+  protected readonly slipUrl = signal<string | null>(null);
   protected readonly phone = formatPhone;
 
   protected readonly lines = computed(() =>
@@ -304,6 +320,7 @@ export class OrderDetailPage {
 
   constructor() {
     effect(() => this.load(Number(this.id())));
+    inject(DestroyRef).onDestroy(() => this.revokeSlipUrl());
   }
 
   protected advance(status: OrderStatus): void {
@@ -316,6 +333,33 @@ export class OrderDetailPage {
       .updateStatus(order.id, status)
       .pipe(finalize(() => this.busy.set(false)))
       .subscribe((updated) => this.order.set(updated));
+  }
+
+  protected viewSlip(paymentId: number): void {
+    this.loadingSlip.set(paymentId);
+    this.api
+      .slip(paymentId)
+      .pipe(
+        finalize(() => this.loadingSlip.set(null)),
+        catchError(() => of(null)),
+      )
+      .subscribe((blob) => {
+        if (blob) {
+          this.slipUrl.set(URL.createObjectURL(blob));
+        }
+      });
+  }
+
+  protected closeSlip(): void {
+    this.revokeSlipUrl();
+    this.slipUrl.set(null);
+  }
+
+  private revokeSlipUrl(): void {
+    const url = this.slipUrl();
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
   }
 
   protected cancel(): void {

@@ -1,0 +1,457 @@
+=== PaymentMethodResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "requiresSlip": {
+   "type": "boolean"
+  },
+  "requiresReference": {
+   "type": "boolean"
+  },
+  "allowOnline": {
+   "type": "boolean"
+  },
+  "instruction": {
+   "type": "string"
+  },
+  "icon": {
+   "type": "string"
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32"
+  }
+ }
+}
+=== PaymentMethodUpsertRequest ===
+{
+ "type": "object",
+ "properties": {
+  "code": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0,
+   "pattern": "^[A-Z][A-Z0-9_]*$"
+  },
+  "name": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "requiresSlip": {
+   "type": "boolean"
+  },
+  "requiresReference": {
+   "type": "boolean"
+  },
+  "allowOnline": {
+   "type": "boolean"
+  },
+  "instruction": {
+   "type": "string",
+   "maxLength": 1000,
+   "minLength": 0
+  },
+  "icon": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0,
+   "pattern": "^[a-zA-Z0-9 _-]*$"
+  },
+  "active": {
+   "type": "boolean"
+  },
+  "sortOrder": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 100000,
+   "minimum": 0
+  }
+ },
+ "required": [
+  "code",
+  "name"
+ ]
+}
+=== PublicPaymentMethod ===
+{
+ "type": "object",
+ "properties": {
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "requiresSlip": {
+   "type": "boolean"
+  },
+  "requiresReference": {
+   "type": "boolean"
+  },
+  "instruction": {
+   "type": "string"
+  },
+  "icon": {
+   "type": "string"
+  },
+  "promptPayId": {
+   "type": "string"
+  },
+  "bankAccount": {
+   "type": "string"
+  }
+ }
+}
+=== PaymentMethodShare ===
+{
+ "type": "object",
+ "properties": {
+  "methodCode": {
+   "type": "string"
+  },
+  "methodName": {
+   "type": "string"
+  },
+  "paymentCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "amount": {
+   "type": "number"
+  }
+ }
+}
+=== QuoteRequest ===
+{
+ "type": "object",
+ "properties": {
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/CartItemRequest"
+   },
+   "maxItems": 50,
+   "minItems": 0
+  },
+  "promoCode": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0
+  },
+  "redeemPoints": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 10000000,
+   "minimum": 0
+  }
+ },
+ "required": [
+  "items"
+ ]
+}
+=== QuoteResponse ===
+{
+ "type": "object",
+ "properties": {
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/Line"
+   }
+  },
+  "subtotal": {
+   "type": "number"
+  },
+  "promotionDiscount": {
+   "type": "number"
+  },
+  "pointDiscount": {
+   "type": "number"
+  },
+  "total": {
+   "type": "number"
+  },
+  "pointsRedeemed": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "pointsToEarn": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "appliedPromotions": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/AppliedPromotion"
+   }
+  }
+ }
+}
+=== AdminQuoteRequest ===
+{
+ "type": "object",
+ "properties": {
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/CartItemRequest"
+   },
+   "maxItems": 50,
+   "minItems": 0
+  },
+  "promoCode": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0
+  },
+  "redeemPoints": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 10000000,
+   "minimum": 0
+  },
+  "customerPhone": {
+   "type": "string",
+   "maxLength": 20,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "items"
+ ]
+}
+=== WalkInOrderRequest ===
+{
+ "type": "object",
+ "properties": {
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/CartItemRequest"
+   },
+   "maxItems": 50,
+   "minItems": 0
+  },
+  "promoCode": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0
+  },
+  "redeemPoints": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 10000000,
+   "minimum": 0
+  },
+  "customerPhone": {
+   "type": "string",
+   "maxLength": 20,
+   "minLength": 0
+  },
+  "guestName": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "note": {
+   "type": "string",
+   "maxLength": 500,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "items"
+ ]
+}
+=== OnlineOrderRequest ===
+{
+ "type": "object",
+ "properties": {
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/CartItemRequest"
+   },
+   "maxItems": 50,
+   "minItems": 0
+  },
+  "promoCode": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0
+  },
+  "redeemPoints": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 10000000,
+   "minimum": 0
+  },
+  "guestName": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  },
+  "guestPhone": {
+   "type": "string",
+   "maxLength": 20,
+   "minLength": 0
+  },
+  "note": {
+   "type": "string",
+   "maxLength": 500,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "items"
+ ]
+}
+=== CartItemRequest ===
+{
+ "type": "object",
+ "properties": {
+  "productId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "quantity": {
+   "type": "integer",
+   "format": "int32",
+   "maximum": 99,
+   "minimum": 1
+  },
+  "optionItemIds": {
+   "type": "array",
+   "items": {
+    "type": "integer",
+    "format": "int64"
+   },
+   "maxItems": 20,
+   "minItems": 0
+  },
+  "note": {
+   "type": "string",
+   "maxLength": 300,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "productId"
+ ]
+}
+=== StaffPaymentRequest ===
+{
+ "type": "object",
+ "properties": {
+  "methodCode": {
+   "type": "string",
+   "maxLength": 30,
+   "minLength": 0
+  },
+  "amount": {
+   "type": "number",
+   "maximum": 99999999.99,
+   "minimum": 0.01
+  },
+  "cashReceived": {
+   "type": "number",
+   "maximum": 99999999.99,
+   "minimum": 0
+  },
+  "referenceNo": {
+   "type": "string",
+   "maxLength": 100,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "methodCode"
+ ]
+}
+=== VerifyPaymentRequest ===
+{
+ "type": "object",
+ "properties": {
+  "approve": {
+   "type": "boolean"
+  },
+  "rejectReason": {
+   "type": "string",
+   "maxLength": 300,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "approve"
+ ]
+}
+=== StatusChangeRequest ===
+{
+ "type": "object",
+ "properties": {
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING_PAYMENT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED"
+   ]
+  }
+ },
+ "required": [
+  "status"
+ ]
+}
+=== CancelRequest ===
+{
+ "type": "object",
+ "properties": {
+  "reason": {
+   "type": "string",
+   "maxLength": 500,
+   "minLength": 0
+  }
+ },
+ "required": [
+  "reason"
+ ]
+}
+=== ReceiptResponse ===
+{
+ "type": "object",
+ "properties": {
+  "shopName": {
+   "type": "string"
+  },
+  "shopPhone": {
+   "type": "string"
+  },
+  "order": {
+   "$ref": "#/components/schemas/OrderResponse"
+  },
+  "cashierName": {
+   "type": "string"
+  },
+  "printedAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}

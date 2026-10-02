@@ -59,6 +59,7 @@ function createUser(
     lastLoginAt: null,
     createdAt: input.createdAt.toISOString(),
     nickname: input.nickname,
+    passwordChangeRequired: false,
     profile: input.withProfile
       ? {
           memberCode: `R5D-${pad(nextId(state, 'member_code'), 6)}`,
@@ -96,7 +97,7 @@ function seedPromotions(now: Date): MockPromotion[] {
     usedCount: 0,
     showOnLanding: true,
     priority: 1,
-    isActive: true,
+    active: true,
     productIds: [] as number[],
     categoryIds: [] as number[],
   };
@@ -196,7 +197,7 @@ function seedPromotions(now: Date): MockPromotion[] {
 }
 
 function randomItems(state: MockState, rand: () => number): CartItemRequest[] {
-  const available = state.products.filter((product) => product.isAvailable);
+  const available = state.products.filter((product) => product.available);
   const count = 1 + Math.floor(rand() * 3);
   return Array.from({ length: count }, () => {
     const product = pick(available, rand);
@@ -254,7 +255,7 @@ function seedOrder(
       ? 'CASH'
       : input.finalStatus === 'PENDING_SLIP'
         ? 'PROMPTPAY'
-        : pick(['PROMPTPAY', 'PROMPTPAY', 'TRANSFER', 'CASH'], rand)
+        : pick(['PROMPTPAY', 'PROMPTPAY', 'CASH'], rand)
     : pick(['CASH', 'CASH', 'PROMPTPAY', 'CARD', 'TRANSFER'], rand);
   const order = createOrder(state, {
     channel: input.channel,
@@ -272,7 +273,7 @@ function seedOrder(
   if (input.finalStatus === 'PENDING_CASH') {
     return;
   }
-  const slipMethod = methodCode === 'PROMPTPAY' || methodCode === 'TRANSFER';
+  const slipMethod = methodCode === 'PROMPTPAY';
   if (online && slipMethod) {
     const payment = attachSlip(
       state,
@@ -364,10 +365,11 @@ export function seedDatabase(version: number): MockState {
         nameEn: 'Cash / Pay at store',
         requiresSlip: false,
         requiresReference: false,
-        availableOnline: true,
-        isActive: true,
+        allowOnline: true,
+        active: true,
         sortOrder: 1,
         instruction: 'ชำระที่เคาน์เตอร์ตอนรับอาหาร',
+        icon: 'pi pi-wallet',
       },
       {
         id: 2,
@@ -376,22 +378,24 @@ export function seedDatabase(version: number): MockState {
         nameEn: 'PromptPay QR',
         requiresSlip: true,
         requiresReference: false,
-        availableOnline: true,
-        isActive: true,
+        allowOnline: true,
+        active: true,
         sortOrder: 2,
         instruction: 'สแกน QR แล้วแนบสลิป',
+        icon: 'pi pi-qrcode',
       },
       {
         id: 3,
         code: 'TRANSFER',
         name: 'โอนเงินธนาคาร',
         nameEn: 'Bank transfer',
-        requiresSlip: true,
+        requiresSlip: false,
         requiresReference: false,
-        availableOnline: true,
-        isActive: true,
+        allowOnline: false,
+        active: true,
         sortOrder: 3,
-        instruction: 'โอนเข้าบัญชีร้านแล้วแนบสลิป',
+        instruction: 'โอนเข้าบัญชีร้านที่หน้าเคาน์เตอร์ ไม่ต้องแนบสลิป',
+        icon: 'pi pi-building-columns',
       },
       {
         id: 4,
@@ -400,10 +404,11 @@ export function seedDatabase(version: number): MockState {
         nameEn: 'Credit/debit card (EDC)',
         requiresSlip: false,
         requiresReference: true,
-        availableOnline: false,
-        isActive: true,
+        allowOnline: false,
+        active: true,
         sortOrder: 4,
         instruction: 'รูดบัตรที่เครื่อง EDC หน้าร้าน',
+        icon: 'pi pi-credit-card',
       },
     ],
     orders: [],

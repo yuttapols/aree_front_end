@@ -65,8 +65,8 @@ export class OfferBanner {
 
   private readonly catalog = inject(CatalogStore);
 
-  protected readonly combo = computed(() => [
-    this.catalog.byCode('MASSAMAN')?.palette ?? fallbackPalette(1),
-    this.catalog.byCode('THAI-TEA')?.palette ?? fallbackPalette(2),
-  ]);
+  protected readonly combo = computed(() => {
+    const featured = this.catalog.items().filter((item) => item.recommended);
+    return [featured[0]?.palette ?? fallbackPalette(1), featured[1]?.palette ?? fallbackPalette(2)];
+  });
 }

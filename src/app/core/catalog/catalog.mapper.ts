@@ -1,7 +1,8 @@
 import {
   CategoryResponse,
   OptionGroupResponse,
-  PublicProductResponse,
+  ProductDetailResponse,
+  ProductSummaryResponse,
 } from '../api/models/catalog.model';
 import { FALLBACK_PALETTES } from '../data/menu.data';
 import {
@@ -12,8 +13,9 @@ import {
   PlatePalette,
 } from '../models/menu.model';
 
-export function localized(th: string, en?: string | null): LocalizedText {
-  return { th, en: en || th };
+export function localized(th: string | null | undefined, en?: string | null): LocalizedText {
+  const thai = th ?? '';
+  return { th: thai, en: en || thai };
 }
 
 export function fallbackPalette(seed: number): PlatePalette {
@@ -36,19 +38,29 @@ export function toMenuOptionGroup(group: OptionGroupResponse): MenuOptionGroup {
     name: localized(group.name, group.nameEn),
     minSelect: group.minSelect,
     maxSelect: group.maxSelect,
-    options: group.items
-      .filter((item) => item.isAvailable)
-      .map((item) => ({
-        id: String(item.id),
-        optionItemId: item.id,
-        groupId: group.id,
-        name: localized(item.name, item.nameEn),
-        price: item.extraPrice,
-      })),
+    options: group.items.map((item) => ({
+      id: String(item.id),
+      optionItemId: item.id,
+      groupId: group.id,
+      name: localized(item.name, item.nameEn),
+      price: item.extraPrice,
+      available: item.available,
+    })),
   };
 }
 
-export function toMenuItem(product: PublicProductResponse, categorySlug: string): MenuItem {
+function isProductDetail(
+  product: ProductSummaryResponse | ProductDetailResponse,
+): product is ProductDetailResponse {
+  return Array.isArray((product as ProductDetailResponse).optionGroups);
+}
+
+export function toMenuItem(
+  product: ProductSummaryResponse | ProductDetailResponse,
+  categorySlug: string,
+  knownPromotionIds: number[] = [],
+): MenuItem {
+  const optionGroups = isProductDetail(product) ? product.optionGroups : [];
   return {
     id: String(product.id),
     productId: product.id,
@@ -59,13 +71,15 @@ export function toMenuItem(product: PublicProductResponse, categorySlug: string)
     price: product.price,
     originalPrice: product.originalPrice ?? undefined,
     badge: product.badge ?? undefined,
-    soldOut: !product.isAvailable,
-    recommended: product.isRecommended,
-    rating: product.rating,
-    reviews: product.reviews,
+    soldOut: !product.available,
+    recommended: product.recommended,
+    rating: product.rating ?? 0,
+    reviews: product.reviews ?? 0,
     palette: product.palette ?? fallbackPalette(product.id),
     imageUrl: product.imageUrl,
-    optionGroups: product.optionGroups.map(toMenuOptionGroup),
-    promotionIds: product.promotionIds,
+    hasOptions: product.hasOptions || optionGroups.length > 0,
+    optionsLoaded: isProductDetail(product) || !product.hasOptions,
+    optionGroups: optionGroups.map(toMenuOptionGroup),
+    promotionIds: product.promotionIds ?? knownPromotionIds,
   };
 }

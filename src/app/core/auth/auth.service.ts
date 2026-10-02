@@ -9,6 +9,7 @@ import {
   firstValueFrom,
   fromEvent,
   map,
+  merge,
   of,
   shareReplay,
   tap,
@@ -27,6 +28,12 @@ import { AuthStore } from './auth.store';
 
 const REFRESH_AHEAD_MS = 60_000;
 const PROTECTED_PATHS = ['/profile', '/backoffice'];
+const IDLE_CHECK_MS = 60_000;
+const IDLE_WINDOW_MS: Record<UserRole, number> = {
+  CUSTOMER: 15 * 60_000,
+  STAFF: 12 * 60 * 60_000,
+  ADMIN: 12 * 60 * 60_000,
+};
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -59,6 +66,22 @@ export class AuthService {
           this.keepSessionAlive();
         }
       });
+
+    let lastActivityAt = Date.now();
+    merge(
+      fromEvent(this.document, 'click'),
+      fromEvent(this.document, 'keydown'),
+      fromEvent(this.document, 'touchstart'),
+    ).subscribe(() => (lastActivityAt = Date.now()));
+    setInterval(() => {
+      const role = this.store.role();
+      if (!role) {
+        return;
+      }
+      if (Date.now() - lastActivityAt >= IDLE_WINDOW_MS[role]) {
+        this.expireSession(true);
+      }
+    }, IDLE_CHECK_MS);
   }
 
   login(request: LoginRequest): Observable<MeResponse> {

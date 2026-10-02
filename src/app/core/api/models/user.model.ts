@@ -18,6 +18,7 @@ export interface MeResponse {
   pointsBalance: number;
   lifetimePoints: number;
   createdAt: string;
+  passwordChangeRequired: boolean;
 }
 
 export interface AuthResponse {
@@ -100,6 +101,7 @@ export interface StaffUpsertRequest {
   role: UserRole;
   status: UserStatus;
   password?: string | null;
+  newPassword?: string | null;
 }
 
 export interface ShopInfoResponse {
@@ -109,7 +111,20 @@ export interface ShopInfoResponse {
   openTime: string;
   closeTime: string;
   acceptOnlineOrder: boolean;
-  isOpenNow: boolean;
+  openNow: boolean;
+}
+
+export type SettingValueType = 'STRING' | 'NUMBER' | 'BOOLEAN' | 'TIME';
+
+export interface SettingEntry {
+  key: string;
+  value: string | null;
+  valueType: SettingValueType;
+  description: string | null;
+}
+
+export interface UpdateSettingsRequest {
+  values: Record<string, string>;
 }
 
 export interface ShopSettings {

@@ -31,9 +31,11 @@ import { MenuCard } from './menu-card';
           <span
             class="bg-brand-soft text-brand mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full"
           >
-            <i class="pi pi-search text-xl"></i>
+            <i [class]="filter.catalogEmpty() ? 'pi pi-inbox' : 'pi pi-search'" class="text-xl"></i>
           </span>
-          <p class="text-ink-muted">{{ i18n.t('menu.empty') }}</p>
+          <p class="text-ink-muted">
+            {{ i18n.t(filter.catalogEmpty() ? 'menu.emptyCatalog' : 'menu.empty') }}
+          </p>
         </div>
       }
     </div>

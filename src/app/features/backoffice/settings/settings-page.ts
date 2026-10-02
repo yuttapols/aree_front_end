@@ -22,7 +22,13 @@ import { FormField } from '../../../shared/components/form-field/form-field';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Panel } from '../../../shared/components/panel/panel';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
-import { requiredText } from '../../../shared/utils/validators';
+import {
+  paymentMethodCode,
+  requiredText,
+  textField,
+  thaiPhone,
+} from '../../../shared/utils/validators';
+import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -243,16 +249,16 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
               >
                 <ng-template #cell let-row let-column="column">
                   @switch (column.key) {
-                    @case ('isActive') {
+                    @case ('active') {
                       <p-toggleswitch
-                        [ngModel]="row.isActive"
-                        (ngModelChange)="patchMethod(row, { isActive: $event })"
+                        [ngModel]="row.active"
+                        (ngModelChange)="patchMethod(row, { active: $event })"
                       />
                     }
-                    @case ('availableOnline') {
+                    @case ('allowOnline') {
                       <p-toggleswitch
-                        [ngModel]="row.availableOnline"
-                        (ngModelChange)="patchMethod(row, { availableOnline: $event })"
+                        [ngModel]="row.allowOnline"
+                        (ngModelChange)="patchMethod(row, { allowOnline: $event })"
                       />
                     }
                     @case ('requiresSlip') {
@@ -337,12 +343,12 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
             }}</label
           >
           <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="availableOnline" />{{
-              i18n.t('settings.availableOnline')
+            ><p-toggleswitch formControlName="allowOnline" />{{
+              i18n.t('settings.allowOnline')
             }}</label
           >
           <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="isActive" />{{ i18n.t('status.active.true') }}</label
+            ><p-toggleswitch formControlName="active" />{{ i18n.t('status.active.true') }}</label
           >
         </div>
         <div class="flex justify-end gap-2 sm:col-span-2">
@@ -380,14 +386,14 @@ export class SettingsPage {
   protected readonly editingMethodId = signal<number | null>(null);
 
   protected readonly form = this.fb.nonNullable.group({
-    shopName: ['', [requiredText]],
-    shopPhone: [''],
-    address: [''],
+    shopName: ['', textField(TEXT_LIMITS.shortText, true)],
+    shopPhone: ['', [Validators.maxLength(TEXT_LIMITS.phone), thaiPhone]],
+    address: ['', textField(TEXT_LIMITS.address)],
     openTime: ['16:00', [Validators.pattern(TIME_PATTERN)]],
     closeTime: ['23:00', [Validators.pattern(TIME_PATTERN)]],
     acceptOnlineOrder: [true],
-    promptpayId: [''],
-    bankAccount: [''],
+    promptpayId: ['', [Validators.maxLength(TEXT_LIMITS.phone), Validators.pattern(/^[0-9-]*$/)]],
+    bankAccount: ['', textField(TEXT_LIMITS.shortText)],
     earnBahtPerPoint: [25, [Validators.min(1)]],
     redeemPointsPerBaht: [10, [Validators.min(1)]],
     redeemMinPoints: [100, [Validators.min(1)]],
@@ -396,28 +402,36 @@ export class SettingsPage {
   });
 
   protected readonly methodForm = this.fb.nonNullable.group({
-    code: ['', [requiredText]],
-    name: ['', [requiredText]],
-    nameEn: [''],
-    instruction: [''],
+    code: ['', [requiredText, Validators.maxLength(TEXT_LIMITS.code), paymentMethodCode]],
+    name: ['', textField(TEXT_LIMITS.methodName, true)],
+    nameEn: ['', textField(TEXT_LIMITS.methodName)],
+    instruction: ['', textField(TEXT_LIMITS.instruction)],
     requiresSlip: [false],
     requiresReference: [false],
-    availableOnline: [true],
-    isActive: [true],
+    allowOnline: [true],
+    active: [true],
+    icon: ['', [Validators.maxLength(TEXT_LIMITS.shortText), Validators.pattern(/^[a-z0-9 -]*$/)]],
   });
 
   protected readonly methodColumns = computed<TableColumn<PaymentMethodResponse>[]>(() => [
     { key: 'code', label: this.i18n.t('catalog.code') },
     { key: 'name', label: this.i18n.t('catalog.name'), value: (row) => this.i18n.name(row) },
     { key: 'requiresSlip', label: this.i18n.t('settings.requiresSlip'), custom: true },
-    { key: 'availableOnline', label: this.i18n.t('settings.availableOnline'), custom: true },
-    { key: 'isActive', label: this.i18n.t('status.active.true'), custom: true },
+    { key: 'allowOnline', label: this.i18n.t('settings.allowOnline'), custom: true },
+    { key: 'active', label: this.i18n.t('status.active.true'), custom: true },
     { key: 'actions', label: '', align: 'right', width: '5rem', custom: true },
   ]);
 
   constructor() {
-    this.userApi.settings().subscribe((settings) => this.form.reset(settings));
+    this.userApi.settings().subscribe((settings) => this.applySettings(settings));
     this.loadMethods();
+  }
+
+  private loadedSettings: ShopSettings | null = null;
+
+  private applySettings(settings: ShopSettings): void {
+    this.loadedSettings = settings;
+    this.form.reset(settings);
   }
 
   protected save(): void {
@@ -428,10 +442,10 @@ export class SettingsPage {
     }
     this.saving.set(true);
     this.userApi
-      .updateSettings(this.form.getRawValue() as ShopSettings)
+      .updateSettings(this.form.getRawValue() as ShopSettings, this.loadedSettings)
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe((settings) => {
-        this.form.reset(settings);
+        this.applySettings(settings);
         this.shop.load();
         this.messages.add({ severity: 'success', summary: this.i18n.t('common.saved') });
       });
@@ -446,8 +460,9 @@ export class SettingsPage {
       instruction: method?.instruction ?? '',
       requiresSlip: method?.requiresSlip ?? false,
       requiresReference: method?.requiresReference ?? false,
-      availableOnline: method?.availableOnline ?? true,
-      isActive: method?.isActive ?? true,
+      allowOnline: method?.allowOnline ?? true,
+      active: method?.active ?? true,
+      icon: method?.icon ?? '',
     });
     if (method) {
       this.methodForm.controls.code.disable();
@@ -462,8 +477,12 @@ export class SettingsPage {
     if (this.methodForm.invalid) {
       return;
     }
-    const request = this.methodForm.getRawValue();
     const id = this.editingMethodId();
+    const existing = this.methods().find((method) => method.id === id);
+    const request = {
+      ...this.methodForm.getRawValue(),
+      sortOrder: existing?.sortOrder ?? this.methods().length + 1,
+    };
     this.saving.set(true);
     (id
       ? this.orderApi.updatePaymentMethod(id, request)
@@ -489,9 +508,11 @@ export class SettingsPage {
         nameEn: next.nameEn,
         requiresSlip: next.requiresSlip,
         requiresReference: next.requiresReference,
-        availableOnline: next.availableOnline,
-        isActive: next.isActive,
+        allowOnline: next.allowOnline,
+        active: next.active,
         instruction: next.instruction,
+        icon: next.icon,
+        sortOrder: next.sortOrder,
       })
       .subscribe(() => this.loadMethods());
   }

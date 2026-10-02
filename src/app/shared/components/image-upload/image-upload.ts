@@ -5,9 +5,10 @@ import { finalize } from 'rxjs';
 
 import { ApiClient } from '../../../core/api/api-client';
 import { I18nService } from '../../../core/i18n/i18n.service';
-import { compressImage } from '../../utils/image';
+import { compressImage, hasImageSignature } from '../../utils/image';
 
 const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/webp';
 
 export type UploadMode = 'server' | 'inline';
@@ -83,7 +84,11 @@ export class ImageUpload {
     if (!original) {
       return;
     }
-    if (!ACCEPT.split(',').includes(original.type)) {
+    if (
+      original.size > MAX_SOURCE_BYTES ||
+      !ACCEPT.split(',').includes(original.type) ||
+      !(await hasImageSignature(original))
+    ) {
       this.messages.add({ severity: 'error', summary: this.i18n.error('FILE_INVALID') });
       return;
     }

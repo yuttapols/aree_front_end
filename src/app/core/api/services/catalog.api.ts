@@ -10,8 +10,9 @@ import {
   OptionGroupUpsertRequest,
   ProductQuery,
   ProductResponse,
+  ProductOptionGroupBinding,
   ProductUpsertRequest,
-  PublicProductResponse,
+  ProductDetailResponse,
   SortOrderItem,
 } from '../models/catalog.model';
 import { PageResponse } from '../models/common.model';
@@ -24,8 +25,8 @@ export class CatalogApi {
     return this.api.get<MenuResponse>('/public/menu');
   }
 
-  publicProduct(id: number): Observable<PublicProductResponse> {
-    return this.api.get<PublicProductResponse>(`/public/products/${id}`);
+  publicProduct(id: number): Observable<ProductDetailResponse> {
+    return this.api.get<ProductDetailResponse>(`/public/products/${id}`);
   }
 
   categories(): Observable<CategoryResponse[]> {
@@ -64,8 +65,15 @@ export class CatalogApi {
     return this.api.delete<void>(`/admin/products/${id}`);
   }
 
-  setAvailability(id: number, isAvailable: boolean): Observable<ProductResponse> {
-    return this.api.patch<ProductResponse>(`/admin/products/${id}/availability`, { isAvailable });
+  setAvailability(id: number, available: boolean): Observable<ProductResponse> {
+    return this.api.patch<ProductResponse>(`/admin/products/${id}/availability`, { available });
+  }
+
+  setProductOptionGroups(
+    id: number,
+    bindings: ProductOptionGroupBinding[],
+  ): Observable<ProductResponse> {
+    return this.api.put<ProductResponse>(`/admin/products/${id}/option-groups`, bindings);
   }
 
   optionGroups(): Observable<OptionGroupResponse[]> {

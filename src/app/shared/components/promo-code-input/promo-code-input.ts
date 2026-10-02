@@ -13,6 +13,7 @@ import { InputTextModule } from 'primeng/inputtext';
 
 import { ERROR_CODES, ErrorCode } from '../../../core/api/models/common.model';
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { TEXT_LIMITS, cleanCode } from '../../utils/sanitize';
 
 @Component({
   selector: 'app-promo-code-input',
@@ -21,9 +22,16 @@ import { I18nService } from '../../../core/i18n/i18n.service';
   host: { class: 'block' },
   template: `
     @if (appliedCode() && !errorMessage()) {
-      <div class="bg-brand-soft flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5">
-        <span class="text-brand text-sm font-bold tracking-wider">
-          <i class="pi pi-ticket mr-2"></i>{{ appliedCode() }}
+      <div
+        class="coupon-notch bg-brand-soft border-brand/30 animate-pop relative flex items-center justify-between gap-3 rounded-2xl border-2 border-dashed px-5 py-3"
+      >
+        <span class="flex items-center gap-3">
+          <span class="bg-brand text-on-brand grid h-9 w-9 place-items-center rounded-xl">
+            <i class="pi pi-ticket"></i>
+          </span>
+          <span class="font-display text-brand text-base font-bold tracking-widest">
+            {{ appliedCode() }}
+          </span>
         </span>
         <p-button
           [label]="i18n.t('common.remove')"
@@ -43,7 +51,8 @@ import { I18nService } from '../../../core/i18n/i18n.service';
           [placeholder]="i18n.t('promo.codePlaceholder')"
           [invalid]="!!errorMessage()"
           [ngModel]="draft()"
-          (ngModelChange)="draft.set($event)"
+          [maxlength]="codeMaxLength"
+          (ngModelChange)="draft.set(cleanCode($event))"
         />
         <p-button
           type="submit"
@@ -76,6 +85,8 @@ export class PromoCodeInput {
   readonly remove = output<void>();
 
   protected readonly draft = signal('');
+  protected readonly cleanCode = cleanCode;
+  protected readonly codeMaxLength = TEXT_LIMITS.code;
 
   protected readonly errorMessage = computed(() => {
     const code = this.error();
@@ -85,7 +96,7 @@ export class PromoCodeInput {
   });
 
   protected submit(): void {
-    const code = this.draft().trim().toUpperCase();
+    const code = cleanCode(this.draft());
     if (code) {
       this.apply.emit(code);
     }

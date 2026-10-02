@@ -1,0 +1,573 @@
+=== OrderResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderNo": {
+   "type": "string"
+  },
+  "trackingToken": {
+   "type": "string",
+   "format": "uuid"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING_PAYMENT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED"
+   ]
+  },
+  "queueNo": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "customer": {
+   "$ref": "#/components/schemas/CustomerRef"
+  },
+  "guestName": {
+   "type": "string"
+  },
+  "guestPhone": {
+   "type": "string"
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/Line"
+   }
+  },
+  "subtotal": {
+   "type": "number"
+  },
+  "promotionDiscount": {
+   "type": "number"
+  },
+  "pointDiscount": {
+   "type": "number"
+  },
+  "totalAmount": {
+   "type": "number"
+  },
+  "paidAmount": {
+   "type": "number"
+  },
+  "remainingAmount": {
+   "type": "number"
+  },
+  "pointsRedeemed": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "pointsEarned": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "note": {
+   "type": "string"
+  },
+  "cashierId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "payments": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/PaymentResponse"
+   }
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "confirmedAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "completedAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "cancelledAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "cancelReason": {
+   "type": "string"
+  }
+ }
+}
+=== CustomerRef ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "nickname": {
+   "type": "string"
+  }
+ }
+}
+=== Line ===
+{
+ "type": "object",
+ "properties": {
+  "productId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "productName": {
+   "type": "string"
+  },
+  "unitPrice": {
+   "type": "number"
+  },
+  "optionsPrice": {
+   "type": "number"
+  },
+  "quantity": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "freeQuantity": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "lineTotal": {
+   "type": "number"
+  },
+  "note": {
+   "type": "string"
+  },
+  "options": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/LineOption"
+   }
+  }
+ }
+}
+=== LineOption ===
+{
+ "type": "object",
+ "properties": {
+  "groupName": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "extraPrice": {
+   "type": "number"
+  }
+ }
+}
+=== AppliedPromotion ===
+{
+ "type": "object",
+ "properties": {
+  "promotionId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "code": {
+   "type": "string"
+  },
+  "name": {
+   "type": "string"
+  },
+  "type": {
+   "type": "string"
+  },
+  "discountAmount": {
+   "type": "number"
+  },
+  "pointMultiplier": {
+   "type": "number"
+  }
+ }
+}
+=== TrackResponse ===
+{
+ "type": "object",
+ "properties": {
+  "orderNo": {
+   "type": "string"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING_PAYMENT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED"
+   ]
+  },
+  "queueNo": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "guestName": {
+   "type": "string"
+  },
+  "maskedPhone": {
+   "type": "string"
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/Line"
+   }
+  },
+  "subtotal": {
+   "type": "number"
+  },
+  "promotionDiscount": {
+   "type": "number"
+  },
+  "pointDiscount": {
+   "type": "number"
+  },
+  "totalAmount": {
+   "type": "number"
+  },
+  "paidAmount": {
+   "type": "number"
+  },
+  "remainingAmount": {
+   "type": "number"
+  },
+  "payments": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/PublicPaymentResponse"
+   }
+  },
+  "note": {
+   "type": "string"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "confirmedAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "completedAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "cancelledAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== PublicPaymentResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "methodCode": {
+   "type": "string"
+  },
+  "methodName": {
+   "type": "string"
+  },
+  "amount": {
+   "type": "number"
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING",
+    "PAID",
+    "REJECTED",
+    "REFUNDED"
+   ]
+  },
+  "rejectReason": {
+   "type": "string"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== PaymentResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "methodCode": {
+   "type": "string"
+  },
+  "methodName": {
+   "type": "string"
+  },
+  "amount": {
+   "type": "number"
+  },
+  "cashReceived": {
+   "type": "number"
+  },
+  "changeAmount": {
+   "type": "number"
+  },
+  "referenceNo": {
+   "type": "string"
+  },
+  "hasSlip": {
+   "type": "boolean"
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING",
+    "PAID",
+    "REJECTED",
+    "REFUNDED"
+   ]
+  },
+  "paidAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "verifiedBy": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "rejectReason": {
+   "type": "string"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== PendingPaymentItem ===
+{
+ "type": "object",
+ "properties": {
+  "payment": {
+   "$ref": "#/components/schemas/PaymentResponse"
+  },
+  "orderId": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderNo": {
+   "type": "string"
+  },
+  "orderStatus": {
+   "type": "string",
+   "enum": [
+    "PENDING_PAYMENT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED"
+   ]
+  },
+  "orderTotal": {
+   "type": "number"
+  },
+  "customerName": {
+   "type": "string"
+  }
+ }
+}
+=== BoardItem ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "orderNo": {
+   "type": "string"
+  },
+  "channel": {
+   "type": "string",
+   "enum": [
+    "WALK_IN",
+    "ONLINE"
+   ]
+  },
+  "status": {
+   "type": "string",
+   "enum": [
+    "PENDING_PAYMENT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY",
+    "COMPLETED",
+    "CANCELLED"
+   ]
+  },
+  "queueNo": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "customerName": {
+   "type": "string"
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "$ref": "#/components/schemas/Line"
+   }
+  },
+  "note": {
+   "type": "string"
+  },
+  "createdAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "confirmedAt": {
+   "type": "string",
+   "format": "date-time"
+  }
+ }
+}
+=== Today ===
+{
+ "type": "object",
+ "properties": {
+  "date": {
+   "type": "string",
+   "format": "date"
+  },
+  "ordersByStatus": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "integer",
+    "format": "int64"
+   }
+  },
+  "completedCount": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "netSales": {
+   "type": "number"
+  },
+  "pendingPayments": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "lastQueueNo": {
+   "type": "integer",
+   "format": "int32"
+  }
+ }
+}
+=== MeResponse ===
+{
+ "type": "object",
+ "properties": {
+  "id": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "role": {
+   "type": "string",
+   "enum": [
+    "CUSTOMER",
+    "STAFF",
+    "ADMIN"
+   ]
+  },
+  "phone": {
+   "type": "string"
+  },
+  "email": {
+   "type": "string"
+  },
+  "nickname": {
+   "type": "string"
+  },
+  "firstName": {
+   "type": "string"
+  },
+  "lastName": {
+   "type": "string"
+  },
+  "memberCode": {
+   "type": "string"
+  },
+  "pointsBalance": {
+   "type": "integer",
+   "format": "int32"
+  },
+  "avatarUrl": {
+   "type": "string"
+  },
+  "passwordChangeRequired": {
+   "type": "boolean"
+  }
+ }
+}
+=== TokenResponse ===
+{
+ "type": "object",
+ "properties": {
+  "accessToken": {
+   "type": "string"
+  },
+  "tokenType": {
+   "type": "string"
+  },
+  "expiresIn": {
+   "type": "integer",
+   "format": "int64"
+  },
+  "expiresAt": {
+   "type": "string",
+   "format": "date-time"
+  },
+  "user": {
+   "$ref": "#/components/schemas/MeResponse"
+  }
+ }
+}

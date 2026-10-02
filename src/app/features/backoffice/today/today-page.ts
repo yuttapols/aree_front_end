@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 
-import { OrderResponse, TodayResponse } from '../../../core/api/models/order.model';
+import { OrderResponse } from '../../../core/api/models/order.model';
 import { OrderApi } from '../../../core/api/services/order.api';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -19,6 +19,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Panel } from '../../../shared/components/panel/panel';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { ThaiDatePipe } from '../../../shared/pipes/thai-date.pipe';
+import { toDateKey } from '../../../shared/utils/format';
 import { PosPage } from '../pos/pos-page';
 import { QueueOrderPanel } from './queue-order-panel';
 
@@ -54,34 +55,46 @@ const REFRESH_MS = 10_000;
         />
       </div>
 
-      @if (today(); as data) {
+      @if (queueList(); as data) {
         @if (current(); as serving) {
           <div id="now-serving" class="grid scroll-mt-24 gap-5 lg:grid-cols-2">
             <section
-              class="bg-royal relative flex flex-col justify-center overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_24px_48px_-24px_rgb(58_20_102/0.7)] md:p-8"
+              class="bg-royal animate-rise relative flex flex-col justify-center overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_24px_48px_-24px_rgb(58_20_102/0.7)] md:p-8"
             >
+              <span
+                class="bg-accent/20 pointer-events-none absolute -bottom-24 left-1/4 h-64 w-64 rounded-full blur-3xl"
+              ></span>
               <i
                 class="pi pi-star-fill pointer-events-none absolute -top-10 -right-8 text-[14rem] text-white/5"
               ></i>
               <div class="relative flex flex-wrap items-center gap-6 md:gap-10">
                 <div class="text-center">
-                  <p class="text-base font-semibold text-white/75">
+                  <p
+                    class="flex items-center justify-center gap-2 text-base font-semibold text-white/75"
+                  >
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span
+                        class="bg-accent absolute inline-flex h-full w-full animate-ping rounded-full opacity-70"
+                      ></span>
+                      <span class="bg-accent relative inline-flex h-2.5 w-2.5 rounded-full"></span>
+                    </span>
                     {{ i18n.t('bo.today.nowServing') }}
                   </p>
-                  <p
-                    class="font-display text-accent text-[7rem] leading-none font-extrabold drop-shadow-lg md:text-[9rem]"
-                  >
-                    {{ serving.queueNo }}
-                  </p>
+                  @for (queueNo of [serving.queueNo]; track queueNo) {
+                    <p
+                      class="font-display text-accent animate-pop text-[7rem] leading-none font-extrabold drop-shadow-lg md:text-[9rem]"
+                    >
+                      {{ queueNo }}
+                    </p>
+                  }
                 </div>
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-3xl font-bold md:text-4xl">{{ displayName(serving) }}</p>
-                  @if (serving.memberCode) {
+                  @if (serving.customer?.memberCode; as memberCode) {
                     <span
                       class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-bold tracking-wider"
                     >
-                      <i class="pi pi-star-fill text-accent text-[0.6rem]"></i
-                      >{{ serving.memberCode }}
+                      <i class="pi pi-star-fill text-accent text-[0.6rem]"></i>{{ memberCode }}
                     </span>
                   }
                   <p class="mt-3 text-lg text-white/85">#{{ serving.orderNo }}</p>
@@ -151,12 +164,10 @@ export class TodayPage {
     { labelKey: 'bo.title', link: '/backoffice' },
     { labelKey: 'bo.nav.today' },
   ];
-  protected readonly today = signal<TodayResponse | null>(null);
+  protected readonly queueList = signal<OrderResponse[] | null>(null);
   protected readonly selectedId = signal<number | null>(null);
 
-  protected readonly queue = computed(() =>
-    (this.today()?.queue ?? []).filter((order) => order.status === 'PENDING_PAYMENT'),
-  );
+  protected readonly queue = computed(() => this.queueList() ?? []);
 
   protected readonly current = computed(() => {
     const queue = this.queue();
@@ -190,7 +201,7 @@ export class TodayPage {
   }
 
   protected displayName(order: OrderResponse): string {
-    return order.customerFullName ?? order.customerName ?? this.i18n.t('bo.walkInGuest');
+    return order.customer?.nickname ?? order.guestName ?? this.i18n.t('bo.walkInGuest');
   }
 
   protected itemCount(order: OrderResponse): number {
@@ -198,6 +209,14 @@ export class TodayPage {
   }
 
   protected load(): void {
-    this.api.today().subscribe((today) => this.today.set(today));
+    this.api
+      .orders({
+        status: 'PENDING_PAYMENT',
+        channel: null,
+        date: toDateKey(new Date()),
+        page: 0,
+        size: 50,
+      })
+      .subscribe((page) => this.queueList.set(page.items));
   }
 }

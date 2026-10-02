@@ -5,6 +5,7 @@ import { ApiClient } from '../api-client';
 import { PageResponse } from '../models/common.model';
 import {
   AddPaymentRequest,
+  AdminQuoteRequest,
   AttachSlipRequest,
   CreateOnlineOrderRequest,
   CreatePosOrderRequest,
@@ -17,6 +18,7 @@ import {
   PaymentMethodUpsertRequest,
   PaymentResponse,
   PaymentStatus,
+  PendingPaymentItem,
   QuoteRequest,
   QuoteResponse,
   ReceiptResponse,
@@ -44,7 +46,16 @@ export class OrderApi {
   }
 
   attachSlip(token: string, request: AttachSlipRequest): Observable<PaymentResponse> {
-    return this.api.post<PaymentResponse>(`/public/orders/track/${token}/payments`, request);
+    const form = new FormData();
+    form.append('methodCode', request.methodCode);
+    if (request.amount != null) {
+      form.append('amount', String(request.amount));
+    }
+    if (request.referenceNo) {
+      form.append('referenceNo', request.referenceNo);
+    }
+    form.append('slip', request.slip);
+    return this.api.post<PaymentResponse>(`/public/orders/track/${token}/payments`, form);
   }
 
   myOrders(page: number, size: number): Observable<PageResponse<OrderResponse>> {
@@ -57,6 +68,10 @@ export class OrderApi {
 
   createPos(request: CreatePosOrderRequest): Observable<OrderResponse> {
     return this.api.post<OrderResponse>('/admin/orders', request);
+  }
+
+  adminQuote(request: AdminQuoteRequest): Observable<QuoteResponse> {
+    return this.api.post<QuoteResponse>('/admin/orders/quote', request, { background: true });
   }
 
   addPayment(orderId: number, request: AddPaymentRequest): Observable<OrderResponse> {
@@ -77,10 +92,6 @@ export class OrderApi {
     });
   }
 
-  settle(id: number, methodCode: string): Observable<OrderResponse> {
-    return this.api.post<OrderResponse>(`/admin/orders/${id}/settle`, { methodCode });
-  }
-
   updateStatus(id: number, status: OrderStatus): Observable<OrderResponse> {
     return this.api.patch<OrderResponse>(`/admin/orders/${id}/status`, { status });
   }
@@ -93,8 +104,12 @@ export class OrderApi {
     return this.api.get<ReceiptResponse>(`/admin/orders/${id}/receipt`);
   }
 
-  payments(status: PaymentStatus, background = false): Observable<PaymentResponse[]> {
-    return this.api.get<PaymentResponse[]>('/admin/payments', { status }, { background });
+  payments(status: PaymentStatus, background = false): Observable<PendingPaymentItem[]> {
+    return this.api.get<PendingPaymentItem[]>('/admin/payments', { status }, { background });
+  }
+
+  slip(paymentId: number): Observable<Blob> {
+    return this.api.getBlob(`/admin/payments/${paymentId}/slip`);
   }
 
   verifyPayment(

@@ -13,7 +13,7 @@ import { DialogModule } from 'primeng/dialog';
 
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { MenuItem, MenuOption } from '../../../core/models/menu.model';
-import { FoodPlate } from '../food-plate/food-plate';
+import { ProductImage } from '../product-image/product-image';
 import { OptionSelector } from '../option-selector/option-selector';
 import { Price } from '../price/price';
 import { QtyStepper } from '../qty-stepper/qty-stepper';
@@ -28,7 +28,7 @@ export interface OptionsResult {
 
 @Component({
   selector: 'app-item-options-dialog',
-  imports: [ButtonModule, DialogModule, FoodPlate, OptionSelector, Price, QtyStepper],
+  imports: [ButtonModule, DialogModule, OptionSelector, Price, ProductImage, QtyStepper],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
@@ -43,28 +43,37 @@ export interface OptionsResult {
       [style]="{ width: '34rem' }"
     >
       @if (item(); as current) {
-        <div class="flex gap-4">
-          <div class="bg-card-muted h-24 w-24 shrink-0 overflow-hidden rounded-2xl p-2">
-            @if (current.imageUrl) {
-              <img
-                [src]="current.imageUrl"
-                [alt]="i18n.text(current.name)"
-                class="h-full w-full rounded-xl object-cover"
-              />
-            } @else {
-              <app-food-plate [palette]="current.palette" />
-            }
-          </div>
+        <div
+          class="bg-royal relative grid aspect-[16/9] place-items-center overflow-hidden rounded-3xl"
+        >
+          <span
+            class="pointer-events-none absolute -top-16 -right-10 h-48 w-48 rounded-full bg-white/10"
+          ></span>
+          <span
+            class="bg-accent/25 pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full blur-2xl"
+          ></span>
+          <app-product-image
+            class="relative h-full w-full"
+            [src]="current.imageUrl"
+            [palette]="current.palette"
+            [label]="i18n.text(current.name)"
+            imageClass="animate-pop h-full w-full object-cover"
+            plateClass="animate-float mx-auto h-[78%] translate-y-[14%] drop-shadow-[0_18px_24px_rgb(0_0_0/0.35)]"
+          />
+        </div>
+        <div class="mt-4 flex items-start justify-between gap-4">
           <div class="min-w-0">
-            <h3 class="text-ink text-xl font-bold">{{ i18n.text(current.name) }}</h3>
+            <h3 class="font-display text-ink text-2xl font-bold">
+              {{ i18n.text(current.name) }}
+            </h3>
             <p class="text-ink-muted mt-1 text-sm">{{ i18n.text(current.description) }}</p>
-            <app-price
-              class="mt-2"
-              [amount]="current.price"
-              [original]="current.originalPrice"
-              size="sm"
-            />
           </div>
+          <app-price
+            class="shrink-0"
+            [amount]="current.price"
+            [original]="current.originalPrice"
+            size="sm"
+          />
         </div>
 
         @if (current.optionGroups.length) {
@@ -76,7 +85,9 @@ export interface OptionsResult {
           />
         }
 
-        <div class="mt-6 flex items-center justify-between gap-4">
+        <div
+          class="bg-card border-line sticky -bottom-5 -mx-5 mt-6 flex items-center justify-between gap-4 border-t px-5 pt-4 pb-5"
+        >
           <div>
             <p class="text-ink-muted mb-1 text-xs">{{ i18n.t('options.quantity') }}</p>
             <app-qty-stepper

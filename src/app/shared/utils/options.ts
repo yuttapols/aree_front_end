@@ -1,6 +1,10 @@
 import { MenuOption, MenuOptionGroup } from '../../core/models/menu.model';
 
 export function isSelectionValid(groups: MenuOptionGroup[], selected: MenuOption[]): boolean {
+  const ids = selected.map((option) => option.id);
+  if (new Set(ids).size !== ids.length || selected.some((option) => !option.available)) {
+    return false;
+  }
   return groups.every((group) => {
     const count = selected.filter((option) => option.groupId === group.id).length;
     return count >= group.minSelect && count <= group.maxSelect;
@@ -10,7 +14,9 @@ export function isSelectionValid(groups: MenuOptionGroup[], selected: MenuOption
 export function defaultSelection(groups: MenuOptionGroup[]): MenuOption[] {
   return groups
     .filter((group) => group.minSelect > 0)
-    .flatMap((group) => group.options.slice(0, group.minSelect));
+    .flatMap((group) =>
+      group.options.filter((option) => option.available).slice(0, group.minSelect),
+    );
 }
 
 export function toggleOption(
@@ -21,6 +27,9 @@ export function toggleOption(
   const inGroup = selected.filter((candidate) => candidate.groupId === group.id);
   const others = selected.filter((candidate) => candidate.groupId !== group.id);
   const isSelected = inGroup.some((candidate) => candidate.id === option.id);
+  if (!option.available && !isSelected) {
+    return selected;
+  }
   if (group.maxSelect === 1) {
     if (isSelected && group.minSelect === 0) {
       return others;

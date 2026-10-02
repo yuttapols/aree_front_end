@@ -7,11 +7,13 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 
 import { OrderResponse } from '../../core/api/models/order.model';
 import { OrderApi } from '../../core/api/services/order.api';
+import { CatalogStore } from '../../core/catalog/catalog.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Crumb } from '../../shared/components/breadcrumbs/breadcrumbs';
 import { LoadingSkeleton } from '../../shared/components/loading-skeleton/loading-skeleton';
@@ -22,6 +24,7 @@ import { Panel } from '../../shared/components/panel/panel';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
 import { orderSummaryLines } from '../../shared/utils/order-lines';
+import { CartActions } from '../cart/cart-actions.service';
 
 @Component({
   selector: 'app-profile-order-detail',
@@ -63,6 +66,14 @@ import { orderSummaryLines } from '../../shared/utils/order-lines';
                 current.pointsEarned ? i18n.t('track.pointsEarned') : i18n.t('track.pointsOnPickup')
               "
             />
+            <p-button
+              styleClass="mt-5 mr-2"
+              [label]="i18n.t('profile.orders.reorder')"
+              icon="pi pi-replay"
+              [rounded]="true"
+              [disabled]="!catalog.loaded()"
+              (onClick)="reorder(current)"
+            />
             @if (
               current.channel === 'ONLINE' &&
               current.status !== 'COMPLETED' &&
@@ -94,7 +105,11 @@ import { orderSummaryLines } from '../../shared/utils/order-lines';
 })
 export class ProfileOrderDetail {
   protected readonly i18n = inject(I18nService);
+  protected readonly catalog = inject(CatalogStore);
   private readonly api = inject(OrderApi);
+  private readonly cartActions = inject(CartActions);
+  private readonly messages = inject(MessageService);
+  private readonly router = inject(Router);
 
   readonly orderNo = input.required<string>();
 
@@ -109,8 +124,25 @@ export class ProfileOrderDetail {
   ]);
 
   constructor() {
+    this.catalog.load();
     effect(() => {
       this.api.myOrder(this.orderNo()).subscribe((order) => this.order.set(order));
     });
+  }
+
+  protected reorder(order: OrderResponse): void {
+    const result = this.cartActions.reorder(order.items);
+    if (!result.added) {
+      this.messages.add({ severity: 'warn', summary: this.i18n.t('profile.orders.reorderNone') });
+      return;
+    }
+    this.messages.add({
+      severity: result.skipped ? 'warn' : 'success',
+      summary: this.i18n.t('toast.added'),
+      detail: result.skipped
+        ? this.i18n.t('profile.orders.reorderSkipped', { n: result.skipped })
+        : undefined,
+    });
+    this.router.navigateByUrl('/checkout');
   }
 }

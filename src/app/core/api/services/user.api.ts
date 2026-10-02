@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map, switchMap } from 'rxjs';
 
 import { ApiClient } from '../api-client';
+import { changedSettingValues, toShopSettings } from './settings.mapper';
 import { PageResponse } from '../models/common.model';
 import { OrderResponse } from '../models/order.model';
 import {
@@ -10,6 +11,7 @@ import {
   PointTransactionResponse,
 } from '../models/loyalty.model';
 import {
+  AuthResponse,
   ChangePasswordRequest,
   CustomerResponse,
   MeResponse,
@@ -17,10 +19,11 @@ import {
   QuickRegisterRequest,
   QuickRegisterResponse,
   ShopInfoResponse,
+  SettingEntry,
   ShopSettings,
+  UpdateSettingsRequest,
   StaffResponse,
   StaffUpsertRequest,
-  TemporaryPasswordResponse,
 } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -41,8 +44,8 @@ export class UserApi {
     return this.api.post<MeResponse>('/me/profile/avatar', form);
   }
 
-  changePassword(request: ChangePasswordRequest): Observable<void> {
-    return this.api.put<void>('/me/password', request, { silent: true });
+  changePassword(request: ChangePasswordRequest): Observable<AuthResponse> {
+    return this.api.put<AuthResponse>('/me/password', request, { silent: true });
   }
 
   myPoints(): Observable<PointSummaryResponse> {
@@ -121,15 +124,25 @@ export class UserApi {
     return this.api.put<StaffResponse>(`/admin/staff/${id}`, request);
   }
 
-  resetStaffPassword(id: number): Observable<TemporaryPasswordResponse> {
-    return this.api.post<TemporaryPasswordResponse>(`/admin/staff/${id}/reset-password`);
+  resetStaffPassword(member: StaffResponse, newPassword: string): Observable<StaffResponse> {
+    return this.api.put<StaffResponse>(`/admin/staff/${member.id}`, {
+      phone: member.phone,
+      email: member.email,
+      nickname: member.nickname,
+      role: member.role,
+      status: member.status,
+      newPassword,
+    });
   }
 
   settings(): Observable<ShopSettings> {
-    return this.api.get<ShopSettings>('/admin/settings');
+    return this.api.get<SettingEntry[]>('/admin/settings').pipe(map(toShopSettings));
   }
 
-  updateSettings(request: ShopSettings): Observable<ShopSettings> {
-    return this.api.put<ShopSettings>('/admin/settings', request);
+  updateSettings(next: ShopSettings, previous: ShopSettings | null): Observable<ShopSettings> {
+    const request: UpdateSettingsRequest = { values: changedSettingValues(next, previous) };
+    return this.api
+      .put<SettingEntry[]>('/admin/settings', request)
+      .pipe(switchMap(() => this.settings()));
   }
 }

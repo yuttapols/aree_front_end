@@ -16,7 +16,7 @@ import { Gender, ShopSettings, UserRole, UserStatus } from '../api/models/user.m
 import { seedDatabase } from './mock-seed';
 
 const STORAGE_KEY = 'roti.mock.db';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 6;
 
 export interface MockProfile {
   memberCode: string;
@@ -41,12 +41,13 @@ export interface MockUser {
   createdAt: string;
   nickname: string;
   profile: MockProfile | null;
+  passwordChangeRequired: boolean;
 }
 
 export type MockCategory = Omit<CategoryResponse, 'productCount'>;
 export type MockProduct = Omit<ProductResponse, 'categoryName'>;
 export type MockOptionGroup = OptionGroupResponse;
-export type MockPaymentMethod = Omit<PaymentMethodResponse, 'promptpayId'>;
+export type MockPaymentMethod = Omit<PaymentMethodResponse, 'promptpayId' | 'bankAccount'>;
 
 export interface MockOrder {
   id: number;

@@ -60,7 +60,7 @@ export interface PromotionResponse {
   usedCount: number;
   showOnLanding: boolean;
   priority: number;
-  isActive: boolean;
+  active: boolean;
   productIds: number[];
   categoryIds: number[];
 }
