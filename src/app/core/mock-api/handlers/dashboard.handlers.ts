@@ -1,7 +1,18 @@
 import { BreakdownSlice, DashboardTotals, TrendGroupBy } from '../../api/models/dashboard.model';
 import type { MockOrder, MockState } from '../mock-db';
 import { MockContext, MockRouter, queryString, requireAdmin } from '../mock-router';
-import { addDays, dateKey, pad, parseDateKey, roundMoney, startOfDay } from '../mock-utils';
+import {
+  addDays,
+  badRequest,
+  dateKey,
+  pad,
+  parseDateKey,
+  roundMoney,
+  startOfDay,
+} from '../mock-utils';
+
+const MAX_RANGE_DAYS = 366;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface Range {
   from: Date;
@@ -12,10 +23,24 @@ function rangeOf(context: MockContext): Range {
   const today = startOfDay(context.now);
   const from = queryString(context, 'from');
   const to = queryString(context, 'to');
-  return {
+  const range = {
     from: from ? parseDateKey(from) : addDays(today, -6),
     to: addDays(to ? parseDateKey(to) : today, 1),
   };
+  const days = Math.round((range.to.getTime() - range.from.getTime()) / DAY_MS);
+  if (days < 1 || days > MAX_RANGE_DAYS) {
+    throw badRequest(`from/to must be within ${MAX_RANGE_DAYS} days`);
+  }
+  return range;
+}
+
+function dayOf(context: MockContext): Range {
+  const date = queryString(context, 'date');
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw badRequest('date is required (YYYY-MM-DD)');
+  }
+  const from = parseDateKey(date);
+  return { from, to: addDays(from, 1) };
 }
 
 function previousRange(range: Range): Range {
@@ -117,7 +142,7 @@ export function registerDashboardHandlers(router: MockRouter): void {
         for (const item of order.items) {
           const entry = products.get(item.productId) ?? {
             productName: item.productName,
-            productNameEn: item.productNameEn,
+            productNameEn: item.productNameEn ?? item.productName,
             quantity: 0,
             salesAmount: 0,
           };
@@ -163,15 +188,15 @@ export function registerDashboardHandlers(router: MockRouter): void {
       const hours = Array.from({ length: 24 }, (_value, hour) => ({
         hour,
         orderCount: 0,
-        salesAmount: 0,
+        netSales: 0,
       }));
-      for (const order of completedIn(context.state, rangeOf(context))) {
+      for (const order of completedIn(context.state, dayOf(context))) {
         const bucket = hours[new Date(order.createdAt).getHours()];
         if (bucket) {
           bucket.orderCount += 1;
-          bucket.salesAmount = roundMoney(bucket.salesAmount + order.totalAmount);
+          bucket.netSales = roundMoney(bucket.netSales + order.totalAmount);
         }
       }
-      return hours;
+      return hours.filter((bucket) => bucket.orderCount > 0);
     });
 }

@@ -32,12 +32,22 @@ export function toMenuCategory(category: CategoryResponse): MenuCategory {
   };
 }
 
+export function looksSelectedByDefault(group: OptionGroupResponse): boolean {
+  return (
+    group.minSelect === 0 &&
+    group.items.length > 0 &&
+    group.maxSelect >= group.items.length &&
+    group.items.every((item) => item.extraPrice === 0)
+  );
+}
+
 export function toMenuOptionGroup(group: OptionGroupResponse): MenuOptionGroup {
   return {
     id: group.id,
     name: localized(group.name, group.nameEn),
     minSelect: group.minSelect,
     maxSelect: group.maxSelect,
+    defaultSelected: !!group.defaultSelected || looksSelectedByDefault(group),
     options: group.items.map((item) => ({
       id: String(item.id),
       optionItemId: item.id,
@@ -82,4 +92,14 @@ export function toMenuItem(
     optionGroups: optionGroups.map(toMenuOptionGroup),
     promotionIds: product.promotionIds ?? knownPromotionIds,
   };
+}
+
+export function productOptionGroupIds(product: {
+  optionGroupIds?: number[] | null;
+  optionGroups?: { id: number }[] | null;
+}): number[] | null {
+  if (product.optionGroupIds) {
+    return product.optionGroupIds;
+  }
+  return product.optionGroups ? product.optionGroups.map((group) => group.id) : null;
 }

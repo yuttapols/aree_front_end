@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiClient } from '../api-client';
+import { PageResponse } from '../models/common.model';
 import {
   PromotionResponse,
   PromotionUpsertRequest,
@@ -20,8 +21,8 @@ export class PromotionApi {
     return this.api.get<PromotionResponse>(`/public/promotions/${id}`);
   }
 
-  list(): Observable<PromotionResponse[]> {
-    return this.api.get<PromotionResponse[]>('/admin/promotions');
+  list(page: number, size: number): Observable<PageResponse<PromotionResponse>> {
+    return this.api.get<PageResponse<PromotionResponse>>('/admin/promotions', { page, size });
   }
 
   detail(id: number): Observable<PromotionResponse> {
@@ -40,7 +41,10 @@ export class PromotionApi {
     return this.api.delete<void>(`/admin/promotions/${id}`);
   }
 
-  usages(id: number): Observable<PromotionUsageResponse[]> {
-    return this.api.get<PromotionUsageResponse[]>(`/admin/promotions/${id}/usages`);
+  usages(id: number, page: number, size: number): Observable<PageResponse<PromotionUsageResponse>> {
+    return this.api.get<PageResponse<PromotionUsageResponse>>(`/admin/promotions/${id}/usages`, {
+      page,
+      size,
+    });
   }
 }

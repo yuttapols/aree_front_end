@@ -20,6 +20,8 @@ import { ThaiDatePipe } from '../../../shared/pipes/thai-date.pipe';
 
 const POLL_MS = 15_000;
 
+const PENDING_PAGE_SIZE = 100;
+
 @Component({
   selector: 'app-pending-payments-page',
   imports: [
@@ -236,6 +238,8 @@ export class PendingPaymentsPage {
   }
 
   private load(background: boolean): void {
-    this.api.payments('PENDING', background).subscribe((payments) => this.payments.set(payments));
+    this.api
+      .payments('PENDING', 0, PENDING_PAGE_SIZE, background)
+      .subscribe((page) => this.payments.set(page.items));
   }
 }

@@ -33,7 +33,7 @@ export const errorsTh = {
   'error.PROMOTION_NOT_ELIGIBLE': 'คำสั่งซื้อนี้ยังไม่ตรงเงื่อนไขโปรโมชั่น',
   'error.PROMOTION_LIMIT_REACHED': 'โปรโมชั่นนี้ถูกใช้ครบสิทธิ์แล้ว',
   'error.INVALID_OPERATION': 'ไม่สามารถทำรายการนี้ได้',
-  'error.FILE_INVALID': 'ไฟล์ไม่ถูกต้อง (รองรับรูปภาพไม่เกิน 2MB)',
+  'error.FILE_INVALID': 'ไฟล์รูปไม่ถูกต้อง (รองรับ JPG, PNG, WEBP)',
   'error.NETWORK_ERROR': 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่',
   'error.INTERNAL_ERROR': 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง',
 };
@@ -73,7 +73,7 @@ export const errorsEn: Record<keyof typeof errorsTh, string> = {
   'error.PROMOTION_NOT_ELIGIBLE': "This order doesn't meet the promotion conditions",
   'error.PROMOTION_LIMIT_REACHED': 'This promotion has reached its usage limit',
   'error.INVALID_OPERATION': "This action can't be completed",
-  'error.FILE_INVALID': 'Invalid file (images up to 2MB)',
+  'error.FILE_INVALID': 'Invalid image file (JPG, PNG, WEBP only)',
   'error.NETWORK_ERROR': "Can't reach the server. Please try again.",
   'error.INTERNAL_ERROR': 'Something went wrong. Please try again.',
 };

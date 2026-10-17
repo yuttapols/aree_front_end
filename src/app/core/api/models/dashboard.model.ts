@@ -47,5 +47,5 @@ export interface PaymentMethodShareResponse {
 export interface HourlySalesResponse {
   hour: number;
   orderCount: number;
-  salesAmount: number;
+  netSales: number;
 }

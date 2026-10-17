@@ -6,7 +6,6 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
@@ -19,23 +18,23 @@ import {
 } from '../../../core/api/models/catalog.model';
 import { CatalogApi } from '../../../core/api/services/catalog.api';
 import { CatalogStore } from '../../../core/catalog/catalog.store';
-import { fallbackPalette } from '../../../core/catalog/catalog.mapper';
+import { fallbackPalette, productOptionGroupIds } from '../../../core/catalog/catalog.mapper';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import {
   DataTable,
   TableColumn,
   TablePage,
 } from '../../../shared/components/data-table/data-table';
-import { FoodPlate } from '../../../shared/components/food-plate/food-plate';
+import { ProductImage } from '../../../shared/components/product-image/product-image';
+import { SectionHero } from '../../../shared/components/section-hero/section-hero';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { FormField } from '../../../shared/components/form-field/form-field';
 import { ImageUpload } from '../../../shared/components/image-upload/image-upload';
-import { Panel } from '../../../shared/components/panel/panel';
 import { SearchBox } from '../../../shared/components/search-box/search-box';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { formatMoney } from '../../../shared/utils/format';
 import {
-  productCode,
   requiredText,
   shouldShowError,
   textField,
@@ -57,39 +56,44 @@ const MAX_PRICE = 99_999.99;
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    MultiSelectModule,
     SelectModule,
     TextareaModule,
     ToggleSwitchModule,
     DataTable,
-    FoodPlate,
     FormField,
     ImageUpload,
-    Panel,
+    MoneyPipe,
+    ProductImage,
     SearchBox,
+    SectionHero,
     StatusTag,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-panel
+    <app-section-hero
+      class="mb-5"
+      icon="pi pi-shopping-bag"
       [heading]="i18n.t('catalog.products')"
-      [subtitle]="i18n.t('catalog.productTotal', { n: total() })"
+      [subtitle]="i18n.t('catalog.productsHint')"
+      [badge]="i18n.t('catalog.productTotal', { n: total() })"
     >
       <p-button
-        panelActions
-        [label]="i18n.t('common.add')"
+        [label]="i18n.t('catalog.newProduct')"
         icon="pi pi-plus"
         [rounded]="true"
         (onClick)="edit(null)"
       />
-      <div class="mb-4 grid gap-3 md:grid-cols-3">
+    </app-section-hero>
+
+    <div class="bg-card border-line shadow-soft rounded-3xl border p-4 md:p-5">
+      <div class="mb-4 grid gap-3 md:grid-cols-[2fr_1fr]">
         <app-search-box
           [placeholder]="i18n.t('catalog.searchProduct')"
           [clearLabel]="i18n.t('search.clear')"
           (search)="patch({ keyword: $event })"
         />
         <p-select
-          [options]="categoryOptions()"
+          [options]="filterCategoryOptions()"
           optionLabel="label"
           optionValue="value"
           [showClear]="true"
@@ -97,16 +101,6 @@ const MAX_PRICE = 99_999.99;
           [placeholder]="i18n.t('catalog.category')"
           [ngModel]="query().categoryId"
           (ngModelChange)="patch({ categoryId: $event })"
-        />
-        <p-select
-          [options]="activeOptions()"
-          optionLabel="label"
-          optionValue="value"
-          [showClear]="true"
-          [fluid]="true"
-          [placeholder]="i18n.t('common.status')"
-          [ngModel]="query().active"
-          (ngModelChange)="patch({ active: $event })"
         />
       </div>
       <app-data-table
@@ -117,34 +111,83 @@ const MAX_PRICE = 99_999.99;
         [page]="query().page"
         [pageSize]="query().size"
         [emptyTitle]="i18n.t('menu.empty')"
-        minWidth="56rem"
+        minWidth="60rem"
         (pageChange)="onPage($event)"
       >
         <ng-template #cell let-row let-column="column">
           @switch (column.key) {
             @case ('name') {
-              <span class="flex items-center gap-3">
-                <span class="bg-card-muted h-11 w-11 shrink-0 overflow-hidden rounded-xl p-1">
-                  @if (row.imageUrl) {
-                    <img
-                      [src]="row.imageUrl"
-                      alt=""
-                      class="h-full w-full rounded-lg object-cover"
-                    />
-                  } @else {
-                    <app-food-plate [palette]="row.palette ?? palette(row.id)" />
+              <span class="flex items-center gap-3" [class.opacity-70]="!row.active">
+                <span
+                  class="bg-royal relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-sm"
+                >
+                  <app-product-image
+                    class="block h-full w-full"
+                    [src]="row.imageUrl"
+                    [palette]="row.palette ?? palette(row.id)"
+                    [label]="i18n.name(row)"
+                    plateClass="mx-auto h-[86%] translate-y-[8%]"
+                  />
+                  @if (!row.available) {
+                    <span
+                      class="absolute inset-0 grid place-items-center bg-black/50 text-[0.6rem] font-bold text-white"
+                      >{{ i18n.t('catalog.soldOut') }}</span
+                    >
                   }
                 </span>
                 <span class="min-w-0">
-                  <span class="text-ink block truncate font-semibold">{{ i18n.name(row) }}</span>
-                  <span class="text-ink-muted block text-xs">{{ row.code }}</span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="text-ink truncate font-semibold">{{ i18n.name(row) }}</span>
+                    @if (row.recommended) {
+                      <i
+                        class="pi pi-star-fill text-accent text-[0.65rem]"
+                        [attr.aria-label]="i18n.t('catalog.recommended')"
+                      ></i>
+                    }
+                  </span>
+                  <span class="mt-0.5 flex items-center gap-1.5">
+                    <span class="text-ink-muted font-mono text-[0.7rem]">{{ row.code }}</span>
+                    @if (row.badge) {
+                      <span
+                        class="bg-accent rounded-full px-2 py-px text-[0.6rem] font-bold text-white"
+                        >{{ badgeLabel(row.badge) }}</span
+                      >
+                    }
+                    @if (groupCount(row); as groupCount) {
+                      <span
+                        class="bg-card-muted text-ink-muted rounded-full px-2 py-px text-[0.6rem]"
+                      >
+                        <i class="pi pi-list-check text-[0.55rem]"></i>
+                        {{ i18n.t('catalog.groupCount', { n: groupCount }) }}
+                      </span>
+                    }
+                  </span>
                 </span>
+              </span>
+            }
+            @case ('category') {
+              <span
+                class="bg-brand-soft text-brand rounded-full px-2.5 py-1 text-xs font-semibold"
+                >{{ row.categoryName }}</span
+              >
+            }
+            @case ('price') {
+              <span class="block text-right">
+                <span class="font-display text-ink text-base font-bold tabular-nums">{{
+                  row.price | money: false
+                }}</span>
+                @if (row.originalPrice && row.originalPrice > row.price) {
+                  <span class="text-ink-muted block text-xs line-through">{{
+                    row.originalPrice | money: false
+                  }}</span>
+                }
               </span>
             }
             @case ('available') {
               <p-toggleswitch
                 [ngModel]="row.available"
                 [disabled]="!row.active"
+                [ariaLabel]="i18n.t('catalog.available')"
                 (ngModelChange)="toggleAvailability(row, $event)"
               />
             }
@@ -152,14 +195,14 @@ const MAX_PRICE = 99_999.99;
               <app-status-tag kind="active" [value]="row.active" />
             }
             @case ('actions') {
-              <p-button
-                icon="pi pi-pencil"
-                [text]="true"
-                [rounded]="true"
-                [ariaLabel]="i18n.t('common.edit')"
-                (onClick)="edit(row)"
-              />
-              @if (row.active) {
+              <span class="inline-flex items-center">
+                <p-button
+                  icon="pi pi-pencil"
+                  [text]="true"
+                  [rounded]="true"
+                  [ariaLabel]="i18n.t('common.edit')"
+                  (onClick)="edit(row)"
+                />
                 <p-button
                   icon="pi pi-trash"
                   severity="danger"
@@ -168,12 +211,12 @@ const MAX_PRICE = 99_999.99;
                   [ariaLabel]="i18n.t('common.delete')"
                   (onClick)="remove(row)"
                 />
-              }
+              </span>
             }
           }
         </ng-template>
       </app-data-table>
-    </app-panel>
+    </div>
 
     <p-dialog
       [visible]="dialogOpen()"
@@ -181,154 +224,279 @@ const MAX_PRICE = 99_999.99;
       [modal]="true"
       [draggable]="false"
       [header]="i18n.t(editingId() ? 'catalog.editProduct' : 'catalog.newProduct')"
-      [style]="{ width: '46rem' }"
-      [breakpoints]="{ '768px': '96vw' }"
+      [style]="{ width: '60rem' }"
+      [breakpoints]="{ '960px': '96vw' }"
     >
-      <form class="grid gap-4 sm:grid-cols-2" [formGroup]="form" (ngSubmit)="save()" novalidate>
-        <div class="sm:col-span-2">
-          <app-image-upload
-            [url]="form.controls.imageUrl.value"
-            (urlChange)="form.controls.imageUrl.setValue($event)"
-          />
+      <form
+        class="grid gap-6 md:grid-cols-[16rem_minmax(0,1fr)]"
+        [formGroup]="form"
+        (ngSubmit)="save()"
+        novalidate
+      >
+        <aside class="grid content-start gap-4 md:sticky md:top-0">
+          <div class="bg-canvas border-line rounded-3xl border p-4">
+            <app-image-upload
+              [url]="form.controls.imageUrl.value"
+              (urlChange)="form.controls.imageUrl.setValue($event)"
+            />
+          </div>
+          <div class="bg-canvas border-line divide-line divide-y rounded-3xl border">
+            @for (toggle of statusToggles; track toggle.control) {
+              <label
+                class="flex cursor-pointer items-center gap-3 px-4 py-3"
+                [for]="'p-' + toggle.control"
+              >
+                <span
+                  class="bg-brand-soft text-brand grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+                  aria-hidden="true"
+                >
+                  <i [class]="toggle.icon"></i>
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="text-ink block text-sm font-semibold">{{
+                    i18n.t(toggle.label)
+                  }}</span>
+                  <span class="text-ink-muted block text-xs leading-snug">{{
+                    i18n.t(toggle.hint)
+                  }}</span>
+                </span>
+                <p-toggleswitch
+                  [inputId]="'p-' + toggle.control"
+                  [formControlName]="toggle.control"
+                />
+              </label>
+            }
+          </div>
+        </aside>
+
+        <div class="grid min-w-0 content-start gap-6">
+          <section class="grid gap-4">
+            <header class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="font-display text-ink flex items-center gap-2 text-base font-bold">
+                <span class="bg-accent h-5 w-1.5 rounded-full" aria-hidden="true"></span>
+                {{ i18n.t('catalog.section.basic') }}
+              </h3>
+              @if (editingProduct(); as product) {
+                <span
+                  class="bg-brand-soft text-brand inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-xs font-semibold"
+                  [attr.aria-label]="i18n.t('catalog.code') + ' ' + product.code"
+                >
+                  <i class="pi pi-hashtag text-[0.65rem]" aria-hidden="true"></i>{{ product.code }}
+                </span>
+              } @else {
+                <span class="text-ink-muted text-xs">{{ i18n.t('catalog.codeAuto') }}</span>
+              }
+            </header>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <app-form-field
+                class="sm:col-span-2"
+                inputId="p-category"
+                [label]="i18n.t('catalog.category') + ' *'"
+                [error]="errorFor('categoryId')"
+              >
+                <p-select
+                  inputId="p-category"
+                  formControlName="categoryId"
+                  [options]="categoryOptions()"
+                  optionLabel="label"
+                  optionValue="value"
+                  [fluid]="true"
+                />
+              </app-form-field>
+              <app-form-field
+                inputId="p-name"
+                [label]="i18n.t('catalog.nameTh') + ' *'"
+                [error]="errorFor('name')"
+              >
+                <input
+                  pInputText
+                  id="p-name"
+                  formControlName="name"
+                  class="rounded-xl"
+                  [fluid]="true"
+                />
+              </app-form-field>
+              <app-form-field inputId="p-name-en" [label]="i18n.t('catalog.nameEn')">
+                <input
+                  pInputText
+                  id="p-name-en"
+                  formControlName="nameEn"
+                  class="rounded-xl"
+                  [fluid]="true"
+                />
+              </app-form-field>
+              <app-form-field inputId="p-desc" [label]="i18n.t('catalog.description')">
+                <textarea
+                  pTextarea
+                  id="p-desc"
+                  formControlName="description"
+                  rows="2"
+                  [autoResize]="true"
+                  class="w-full rounded-xl"
+                ></textarea>
+              </app-form-field>
+              <app-form-field inputId="p-desc-en" [label]="i18n.t('catalog.descriptionEn')">
+                <textarea
+                  pTextarea
+                  id="p-desc-en"
+                  formControlName="descriptionEn"
+                  rows="2"
+                  [autoResize]="true"
+                  class="w-full rounded-xl"
+                ></textarea>
+              </app-form-field>
+            </div>
+          </section>
+
+          <section class="grid gap-4">
+            <h3 class="font-display text-ink flex items-center gap-2 text-base font-bold">
+              <span class="bg-accent h-5 w-1.5 rounded-full" aria-hidden="true"></span>
+              {{ i18n.t('catalog.section.pricing') }}
+            </h3>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <app-form-field
+                inputId="p-price"
+                [label]="i18n.t('catalog.price') + ' *'"
+                [error]="errorFor('price')"
+              >
+                <p-inputnumber
+                  inputId="p-price"
+                  formControlName="price"
+                  mode="currency"
+                  currency="THB"
+                  locale="th-TH"
+                  [min]="0"
+                  [fluid]="true"
+                />
+              </app-form-field>
+              <app-form-field
+                inputId="p-original"
+                [label]="i18n.t('catalog.originalPrice')"
+                [hint]="i18n.t('catalog.originalPriceHint')"
+              >
+                <p-inputnumber
+                  inputId="p-original"
+                  formControlName="originalPrice"
+                  mode="currency"
+                  currency="THB"
+                  locale="th-TH"
+                  [min]="0"
+                  [showClear]="true"
+                  [fluid]="true"
+                />
+              </app-form-field>
+            </div>
+            @if (discountPercent(); as percent) {
+              <p
+                class="bg-accent-soft text-accent flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm"
+                role="status"
+              >
+                <span class="font-display text-lg font-extrabold">{{
+                  formValue().price | money
+                }}</span>
+                <span class="text-ink-muted line-through">{{
+                  formValue().originalPrice | money
+                }}</span>
+                <span
+                  class="bg-accent text-on-brand ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold"
+                  >{{ i18n.t('catalog.discountPercent', { n: percent }) }}</span
+                >
+              </p>
+            }
+          </section>
+
+          <section class="grid gap-4">
+            <h3 class="font-display text-ink flex items-center gap-2 text-base font-bold">
+              <span class="bg-accent h-5 w-1.5 rounded-full" aria-hidden="true"></span>
+              {{ i18n.t('catalog.section.display') }}
+            </h3>
+            <div class="grid gap-2">
+              <span id="p-badge-label" class="text-ink text-sm font-semibold">{{
+                i18n.t('catalog.badge')
+              }}</span>
+              <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="p-badge-label">
+                <button
+                  type="button"
+                  role="radio"
+                  class="rounded-full border px-4 py-1.5 text-sm font-semibold transition"
+                  [attr.aria-checked]="!formValue().badge"
+                  [class]="badgeChipClass(!formValue().badge)"
+                  (click)="setBadge(null)"
+                >
+                  {{ i18n.t('common.none') }}
+                </button>
+                @for (option of badgeOptions(); track option.value) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="rounded-full border px-4 py-1.5 text-sm font-semibold transition"
+                    [attr.aria-checked]="formValue().badge === option.value"
+                    [class]="badgeChipClass(formValue().badge === option.value)"
+                    (click)="setBadge(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="grid gap-2">
+              <span class="text-ink flex items-center justify-between gap-2 text-sm font-semibold">
+                <span id="p-groups-label">{{ i18n.t('catalog.optionGroups') }}</span>
+                @if (!groupsReady()) {
+                  <i class="pi pi-spin pi-spinner text-ink-muted" aria-hidden="true"></i>
+                }
+              </span>
+              <div class="grid gap-2 sm:grid-cols-2" role="group" aria-labelledby="p-groups-label">
+                @for (group of groupCards(); track group.id) {
+                  <button
+                    type="button"
+                    role="checkbox"
+                    class="flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition disabled:opacity-50"
+                    [attr.aria-checked]="group.selected"
+                    [disabled]="!groupsReady()"
+                    [class.border-brand]="group.selected"
+                    [class.bg-brand-soft]="group.selected"
+                    [class.border-line]="!group.selected"
+                    [class.hover:border-brand]="!group.selected"
+                    (click)="toggleGroup(group.id)"
+                  >
+                    <span
+                      class="grid h-6 w-6 shrink-0 place-items-center rounded-lg border-2 text-xs transition"
+                      [class.border-brand]="group.selected"
+                      [class.bg-brand]="group.selected"
+                      [class.text-on-brand]="group.selected"
+                      [class.border-line]="!group.selected"
+                      aria-hidden="true"
+                    >
+                      @if (group.selected) {
+                        <i class="pi pi-check text-[0.65rem]"></i>
+                      }
+                    </span>
+                    <span class="min-w-0 flex-1">
+                      <span class="text-ink block truncate text-sm font-semibold">{{
+                        group.label
+                      }}</span>
+                      <span class="text-ink-muted block text-xs">{{
+                        i18n.t('catalog.groupItems', { n: group.itemCount })
+                      }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+              @if (groupsReady() && !selectedGroupIds()?.length) {
+                <small
+                  class="bg-accent-soft text-accent flex items-start gap-2 rounded-xl px-3 py-2 text-xs font-semibold"
+                  role="status"
+                >
+                  <i class="pi pi-exclamation-triangle mt-0.5 text-xs"></i>
+                  {{ i18n.t('catalog.noOptionGroupsWarning') }}
+                </small>
+              }
+            </div>
+          </section>
         </div>
-        <app-form-field
-          inputId="p-category"
-          [label]="i18n.t('catalog.category') + ' *'"
-          [error]="errorFor('categoryId')"
-        >
-          <p-select
-            inputId="p-category"
-            formControlName="categoryId"
-            [options]="categoryOptions()"
-            optionLabel="label"
-            optionValue="value"
-            [fluid]="true"
-          />
-        </app-form-field>
-        <app-form-field
-          inputId="p-code"
-          [label]="i18n.t('catalog.code') + ' *'"
-          [error]="errorFor('code')"
-        >
-          <input
-            pInputText
-            id="p-code"
-            formControlName="code"
-            class="rounded-xl uppercase"
-            [fluid]="true"
-          />
-        </app-form-field>
-        <app-form-field
-          inputId="p-name"
-          [label]="i18n.t('catalog.nameTh') + ' *'"
-          [error]="errorFor('name')"
-        >
-          <input pInputText id="p-name" formControlName="name" class="rounded-xl" [fluid]="true" />
-        </app-form-field>
-        <app-form-field inputId="p-name-en" [label]="i18n.t('catalog.nameEn')">
-          <input
-            pInputText
-            id="p-name-en"
-            formControlName="nameEn"
-            class="rounded-xl"
-            [fluid]="true"
-          />
-        </app-form-field>
-        <app-form-field inputId="p-desc" [label]="i18n.t('catalog.description')">
-          <textarea
-            pTextarea
-            id="p-desc"
-            formControlName="description"
-            rows="2"
-            class="w-full rounded-xl"
-          ></textarea>
-        </app-form-field>
-        <app-form-field inputId="p-desc-en" [label]="i18n.t('catalog.descriptionEn')">
-          <textarea
-            pTextarea
-            id="p-desc-en"
-            formControlName="descriptionEn"
-            rows="2"
-            class="w-full rounded-xl"
-          ></textarea>
-        </app-form-field>
-        <app-form-field
-          inputId="p-price"
-          [label]="i18n.t('catalog.price') + ' *'"
-          [error]="errorFor('price')"
-        >
-          <p-inputnumber
-            inputId="p-price"
-            formControlName="price"
-            mode="currency"
-            currency="THB"
-            locale="th-TH"
-            [min]="0"
-            [fluid]="true"
-          />
-        </app-form-field>
-        <app-form-field
-          inputId="p-original"
-          [label]="i18n.t('catalog.originalPrice')"
-          [hint]="i18n.t('catalog.originalPriceHint')"
-        >
-          <p-inputnumber
-            inputId="p-original"
-            formControlName="originalPrice"
-            mode="currency"
-            currency="THB"
-            locale="th-TH"
-            [min]="0"
-            [fluid]="true"
-          />
-        </app-form-field>
-        <app-form-field inputId="p-badge" [label]="i18n.t('catalog.badge')">
-          <p-select
-            inputId="p-badge"
-            formControlName="badge"
-            [options]="badgeOptions()"
-            optionLabel="label"
-            optionValue="value"
-            [showClear]="true"
-            [fluid]="true"
-            [placeholder]="i18n.t('common.none')"
-          />
-        </app-form-field>
-        <app-form-field inputId="p-groups" [label]="i18n.t('catalog.optionGroups')">
-          <p-multiselect
-            inputId="p-groups"
-            formControlName="optionGroupIds"
-            [options]="groupOptions()"
-            optionLabel="label"
-            optionValue="value"
-            display="chip"
-            [fluid]="true"
-            [placeholder]="i18n.t('common.none')"
-          />
-          @if (!selectedGroupIds()?.length) {
-            <small
-              class="bg-accent-soft text-accent mt-2 flex items-start gap-2 rounded-xl px-3 py-2 text-xs font-semibold"
-              role="status"
-            >
-              <i class="pi pi-exclamation-triangle mt-0.5 text-xs"></i>
-              {{ i18n.t('catalog.noOptionGroupsWarning') }}
-            </small>
-          }
-        </app-form-field>
-        <div class="flex flex-wrap gap-5 sm:col-span-2">
-          <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="available" />{{ i18n.t('catalog.available') }}</label
-          >
-          <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="recommended" />{{
-              i18n.t('catalog.recommended')
-            }}</label
-          >
-          <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="active" />{{ i18n.t('status.active.true') }}</label
-          >
-        </div>
-        <div class="flex justify-end gap-2 sm:col-span-2">
+
+        <div class="dialog-actions flex justify-end gap-2 md:col-span-2">
           <p-button
             [label]="i18n.t('common.cancel')"
             [text]="true"
@@ -337,6 +505,7 @@ const MAX_PRICE = 99_999.99;
           <p-button
             type="submit"
             [label]="i18n.t('common.save')"
+            icon="pi pi-check"
             [rounded]="true"
             [loading]="saving()"
           />
@@ -369,6 +538,7 @@ export class ProductsPage {
     () => this.products().find((product) => product.id === this.editingId()) ?? null,
   );
   protected readonly submitted = signal(false);
+  protected readonly groupsReady = signal(true);
   protected readonly palette = fallbackPalette;
 
   private readonly categories = toSignal(this.api.categories().pipe(catchError(() => of([]))), {
@@ -387,20 +557,16 @@ export class ProductsPage {
   protected readonly badgeOptions = computed(() =>
     BADGES.map((value) => ({ value, label: this.i18n.t(`menu.badge.${value}`) })),
   );
-  protected readonly activeOptions = computed(() => [
-    { value: true, label: this.i18n.t('status.active.true') },
-    { value: false, label: this.i18n.t('status.active.false') },
-  ]);
+  protected readonly filterCategoryOptions = computed(() =>
+    this.categories()
+      .filter((category) => category.active)
+      .map((category) => ({ value: category.id, label: this.i18n.name(category) })),
+  );
 
   protected readonly columns = computed<TableColumn<ProductResponse>[]>(() => [
     { key: 'name', label: this.i18n.t('catalog.name'), custom: true },
-    { key: 'categoryName', label: this.i18n.t('catalog.category') },
-    {
-      key: 'price',
-      label: this.i18n.t('catalog.price'),
-      align: 'right',
-      value: (row) => formatMoney(row.price, false),
-    },
+    { key: 'category', label: this.i18n.t('catalog.category'), custom: true },
+    { key: 'price', label: this.i18n.t('catalog.price'), align: 'right', custom: true },
     { key: 'available', label: this.i18n.t('catalog.available'), align: 'center', custom: true },
     { key: 'active', label: this.i18n.t('common.status'), custom: true },
     { key: 'actions', label: '', align: 'right', width: '7rem', custom: true },
@@ -408,7 +574,6 @@ export class ProductsPage {
 
   protected readonly form = inject(FormBuilder).group({
     categoryId: [null as number | null, Validators.required],
-    code: ['', [requiredText, Validators.maxLength(TEXT_LIMITS.code), productCode]],
     name: ['', textField(TEXT_LIMITS.productName, true)],
     nameEn: ['', textField(TEXT_LIMITS.productName)],
     description: ['', textField(TEXT_LIMITS.description)],
@@ -426,6 +591,49 @@ export class ProductsPage {
     active: [true],
   });
 
+  protected readonly statusToggles = [
+    {
+      control: 'available',
+      icon: 'pi pi-box',
+      label: 'catalog.available',
+      hint: 'catalog.availableHint',
+    },
+    {
+      control: 'recommended',
+      icon: 'pi pi-thumbs-up',
+      label: 'catalog.recommended',
+      hint: 'catalog.recommendedHint',
+    },
+    {
+      control: 'active',
+      icon: 'pi pi-eye',
+      label: 'status.active.true',
+      hint: 'catalog.activeHint',
+    },
+  ] as const;
+
+  protected readonly formValue = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+
+  protected readonly discountPercent = computed(() => {
+    const { price, originalPrice } = this.formValue();
+    if (!originalPrice || price === null || price === undefined || originalPrice <= price) {
+      return null;
+    }
+    return Math.round(((originalPrice - price) / originalPrice) * 100);
+  });
+
+  protected readonly groupCards = computed(() => {
+    const selected = new Set(this.formValue().optionGroupIds ?? []);
+    return this.groups().map((group) => ({
+      id: group.id,
+      label: this.i18n.name(group),
+      itemCount: group.items.length,
+      selected: selected.has(group.id),
+    }));
+  });
+
   protected readonly selectedGroupIds = toSignal(this.form.controls.optionGroupIds.valueChanges, {
     initialValue: this.form.controls.optionGroupIds.value,
   });
@@ -434,7 +642,27 @@ export class ProductsPage {
     this.load();
   }
 
-  protected errorFor(field: 'categoryId' | 'code' | 'name' | 'price'): string | null {
+  protected badgeChipClass(selected: boolean): string {
+    return selected
+      ? 'border-brand bg-brand text-on-brand shadow-soft'
+      : 'border-line text-ink-muted hover:border-brand hover:text-brand';
+  }
+
+  protected setBadge(badge: ProductBadge | null): void {
+    this.form.controls.badge.setValue(badge);
+    this.form.controls.badge.markAsDirty();
+  }
+
+  protected toggleGroup(groupId: number): void {
+    const control = this.form.controls.optionGroupIds;
+    const current = control.value ?? [];
+    control.setValue(
+      current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId],
+    );
+    control.markAsDirty();
+  }
+
+  protected errorFor(field: 'categoryId' | 'name' | 'price'): string | null {
     const control = this.form.controls[field];
     return shouldShowError(control, this.submitted())
       ? validationMessage(control, this.i18n)
@@ -451,12 +679,15 @@ export class ProductsPage {
     this.load();
   }
 
+  protected badgeLabel(badge: ProductBadge): string {
+    return this.i18n.t(`menu.badge.${badge}`);
+  }
+
   protected edit(product: ProductResponse | null): void {
     this.editingId.set(product?.id ?? null);
     this.submitted.set(false);
     this.form.reset({
       categoryId: product?.categoryId ?? this.categories()[0]?.id ?? null,
-      code: product?.code ?? '',
       name: product?.name ?? '',
       nameEn: product?.nameEn ?? '',
       description: product?.description ?? '',
@@ -465,12 +696,27 @@ export class ProductsPage {
       originalPrice: product?.originalPrice ?? null,
       imageUrl: product?.imageUrl ?? null,
       badge: product?.badge ?? null,
-      optionGroupIds: product?.optionGroupIds ?? [],
+      optionGroupIds: (product && productOptionGroupIds(product)) ?? [],
       available: product?.available ?? true,
       recommended: product?.recommended ?? false,
       active: product?.active ?? true,
     });
+    const knownGroups = product ? productOptionGroupIds(product) : [];
+    this.groupsReady.set(knownGroups !== null);
+    if (product && knownGroups === null) {
+      this.api.adminProduct(product.id).subscribe((detail) => {
+        if (this.editingId() !== product.id) {
+          return;
+        }
+        this.form.controls.optionGroupIds.setValue(productOptionGroupIds(detail) ?? []);
+        this.groupsReady.set(true);
+      });
+    }
     this.dialogOpen.set(true);
+  }
+
+  protected groupCount(product: ProductResponse): number {
+    return productOptionGroupIds(product)?.length ?? 0;
   }
 
   protected save(): void {
@@ -482,7 +728,6 @@ export class ProductsPage {
     const value = this.form.getRawValue();
     const request = {
       categoryId: value.categoryId ?? 0,
-      code: (value.code ?? '').trim().toUpperCase(),
       name: (value.name ?? '').trim(),
       nameEn: (value.nameEn ?? '').trim(),
       description: value.description ?? '',
@@ -504,7 +749,11 @@ export class ProductsPage {
     }));
     (id ? this.api.updateProduct(id, request) : this.api.createProduct(request))
       .pipe(
-        switchMap((product) => this.api.setProductOptionGroups(product.id, optionGroupBindings)),
+        switchMap((product) =>
+          this.groupsReady()
+            ? this.api.setProductOptionGroups(product.id, optionGroupBindings)
+            : of(product),
+        ),
         finalize(() => this.saving.set(false)),
       )
       .subscribe(() => {
@@ -528,12 +777,18 @@ export class ProductsPage {
 
   protected async remove(product: ProductResponse): Promise<void> {
     const ok = await this.confirm.ask({
-      message: this.i18n.t('catalog.confirmDeactivate', { name: this.i18n.name(product) }),
+      message: this.i18n.t('catalog.confirmDelete', { name: this.i18n.name(product) }),
       danger: true,
       acceptLabel: this.i18n.t('common.delete'),
     });
     if (ok) {
-      this.api.deleteProduct(product.id).subscribe(() => this.afterChange());
+      this.api.deleteProduct(product.id).subscribe(() => {
+        this.messages.add({
+          severity: 'success',
+          summary: this.i18n.t('catalog.deleted', { name: this.i18n.name(product) }),
+        });
+        this.afterChange();
+      });
     }
   }
 

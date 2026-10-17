@@ -59,20 +59,22 @@ export interface AdminQuoteRequest {
 }
 
 export interface OrderItemOptionResponse {
-  optionItemId: number;
-  optionGroupName: string;
-  optionName: string;
-  optionNameEn: string;
+  groupName: string;
+  name: string;
   extraPrice: number;
+  optionItemId?: number;
+  nameEn?: string | null;
 }
 
 export interface OrderItemResponse {
+  id?: number;
   productId: number;
   productName: string;
-  productNameEn: string;
+  productNameEn?: string | null;
   unitPrice: number;
   optionsPrice: number;
   quantity: number;
+  freeQuantity?: number;
   lineTotal: number;
   note: string | null;
   options: OrderItemOptionResponse[];
@@ -154,6 +156,7 @@ export interface OrderResponse {
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
+  payLater?: boolean;
   pointsRedeemed: number;
   pointsEarned: number;
   pointsToEarn: number;
@@ -170,6 +173,7 @@ export interface OrderResponse {
   completedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  customerName?: string | null;
 }
 
 export interface CreateOnlineOrderRequest {
@@ -189,6 +193,7 @@ export interface CreatePosOrderRequest {
   note: string | null;
   promoCode: string | null;
   redeemPoints: number | null;
+  payLater?: boolean;
 }
 
 export interface AddPaymentRequest {
@@ -225,6 +230,7 @@ export interface OrderQuery {
   channel?: OrderChannel | null;
   date?: string | null;
   keyword?: string | null;
+  queue?: boolean | null;
 }
 
 export interface BoardItem {
@@ -238,6 +244,7 @@ export interface BoardItem {
   note: string | null;
   createdAt: string;
   confirmedAt: string | null;
+  payLater?: boolean;
 }
 
 export type KitchenBoardResponse = BoardItem[];

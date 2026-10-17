@@ -1,3 +1,4 @@
+import { AdminBannerResponse } from '../api/models/banner.model';
 import {
   CategoryResponse,
   OptionGroupResponse,
@@ -16,7 +17,7 @@ import { Gender, ShopSettings, UserRole, UserStatus } from '../api/models/user.m
 import { seedDatabase } from './mock-seed';
 
 const STORAGE_KEY = 'roti.mock.db';
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 9;
 
 export interface MockProfile {
   memberCode: string;
@@ -45,7 +46,12 @@ export interface MockUser {
 }
 
 export type MockCategory = Omit<CategoryResponse, 'productCount'>;
-export type MockProduct = Omit<ProductResponse, 'categoryName'>;
+export type MockProduct = Omit<
+  ProductResponse,
+  'categoryName' | 'optionGroupIds' | 'optionGroups'
+> & {
+  optionGroupIds: number[];
+};
 export type MockOptionGroup = OptionGroupResponse;
 export type MockPaymentMethod = Omit<PaymentMethodResponse, 'promptpayId' | 'bankAccount'>;
 
@@ -79,6 +85,7 @@ export interface MockOrder {
   completedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  payLater?: boolean;
 }
 
 export interface MockPayment {
@@ -140,6 +147,7 @@ export interface MockState {
   pointTransactions: MockPointTransaction[];
   promotions: MockPromotion[];
   promotionUsages: MockPromotionUsage[];
+  banners: AdminBannerResponse[];
   refreshSession: MockRefreshSession | null;
   counters: Record<string, number>;
   sequences: Record<string, number>;

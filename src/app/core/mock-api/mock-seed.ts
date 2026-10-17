@@ -416,6 +416,7 @@ export function seedDatabase(version: number): MockState {
     pointTransactions: [],
     promotions: seedPromotions(now),
     promotionUsages: [],
+    banners: [],
     refreshSession: null,
     counters: {},
     sequences: {
@@ -425,6 +426,7 @@ export function seedDatabase(version: number): MockState {
       option_item: SEED_OPTION_GROUPS.flatMap((group) => group.items).length,
       payment_method: 4,
       promotion: 6,
+      banner: 0,
     },
   };
 

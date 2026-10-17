@@ -17,6 +17,7 @@ import { CatalogStore } from '../../core/catalog/catalog.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { MenuItem } from '../../core/models/menu.model';
 import { CartActions } from '../cart/cart-actions.service';
+import { BannerBackdrop } from '../../shared/components/banner-backdrop/banner-backdrop';
 import { Crumb } from '../../shared/components/breadcrumbs/breadcrumbs';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { LoadingSkeleton } from '../../shared/components/loading-skeleton/loading-skeleton';
@@ -37,6 +38,7 @@ import {
     ButtonModule,
     EmptyState,
     ItemOptionsDialog,
+    BannerBackdrop,
     LoadingSkeleton,
     PageHeader,
     Panel,
@@ -54,6 +56,7 @@ import {
     <div class="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-10">
       @if (promotion(); as current) {
         <section class="bg-royal relative overflow-hidden rounded-[2rem] p-6 text-white md:p-10">
+          <app-banner-backdrop [url]="current.bannerUrl" [eager]="true" />
           <i
             class="pi pi-tag pointer-events-none absolute -right-6 -bottom-10 text-[12rem] text-white/10"
           ></i>

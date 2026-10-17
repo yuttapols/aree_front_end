@@ -4,11 +4,12 @@ import { ReceiptResponse } from '../../../core/api/models/order.model';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { MoneyPipe } from '../../pipes/money.pipe';
 import { ThaiDatePipe } from '../../pipes/thai-date.pipe';
-import { orderSummaryLines } from '../../utils/order-lines';
+import { OrderLinesService } from '../../services/order-lines.service';
+import { LineExtras } from '../line-extras/line-extras';
 
 @Component({
   selector: 'app-receipt',
-  imports: [MoneyPipe, ThaiDatePipe],
+  imports: [LineExtras, MoneyPipe, ThaiDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'print-area block' },
   template: `
@@ -34,8 +35,8 @@ import { orderSummaryLines } from '../../utils/order-lines';
           <span>{{ line.qty }} x {{ line.name }}</span>
           <span>{{ line.total | money }}</span>
         </div>
-        @if (line.extras) {
-          <p class="pl-4 text-[11px]">{{ line.extras }}</p>
+        @if (line.extras || line.omitted.length) {
+          <p class="pl-4 text-[11px]"><app-line-extras [line]="line" /></p>
         }
       }
       <div class="my-2 border-t border-dashed border-black"></div>
@@ -81,11 +82,12 @@ import { orderSummaryLines } from '../../utils/order-lines';
 })
 export class Receipt {
   protected readonly i18n = inject(I18nService);
+  private readonly orderLines = inject(OrderLinesService);
 
   readonly receipt = input.required<ReceiptResponse>();
 
   protected readonly order = computed(() => this.receipt().order);
-  protected readonly lines = computed(() => orderSummaryLines(this.order().items, this.i18n));
+  protected readonly lines = computed(() => this.orderLines.summarize(this.order().items));
   protected readonly paidPayments = computed(() =>
     this.order().payments.filter((payment) => payment.status === 'PAID'),
   );

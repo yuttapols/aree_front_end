@@ -145,3 +145,7 @@ export function required(value: unknown, field: string, fields: FieldError[]): v
     fields.push({ field, message: `${field} is required` });
   }
 }
+
+export function generatedProductCode(categoryId: number, productId: number): string {
+  return `RT-${String(categoryId).padStart(3, '0')}${String(productId).padStart(4, '0')}`;
+}

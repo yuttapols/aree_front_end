@@ -39,7 +39,7 @@ import { PointsChip } from '../../shared/components/points-chip/points-chip';
 import { PromoCodeInput } from '../../shared/components/promo-code-input/promo-code-input';
 import { QtyStepper } from '../../shared/components/qty-stepper/qty-stepper';
 import { MoneyPipe } from '../../shared/pipes/money.pipe';
-import { cartSummaryLines } from '../../shared/utils/order-lines';
+import { SummaryLine, cartSummaryLines } from '../../shared/utils/order-lines';
 import {
   requiredText,
   shouldShowError,
@@ -48,10 +48,12 @@ import {
   validationMessage,
 } from '../../shared/utils/validators';
 import { TEXT_LIMITS, cleanOptionalText, cleanText } from '../../shared/utils/sanitize';
+import { LineExtras } from '../../shared/components/line-extras/line-extras';
 
 @Component({
   selector: 'app-checkout-page',
   imports: [
+    LineExtras,
     ShopStatus,
     StepProgress,
     FormsModule,
@@ -116,7 +118,12 @@ import { TEXT_LIMITS, cleanOptionalText, cleanText } from '../../shared/utils/sa
                   <li class="flex items-start justify-between gap-3 py-3">
                     <div class="min-w-0 flex-1">
                       <p class="text-ink text-sm font-semibold">{{ i18n.text(line.item.name) }}</p>
-                      <p class="text-ink-muted mt-0.5 text-xs">{{ extras(line.key) }}</p>
+                      <p class="text-ink-muted mt-0.5 text-xs">
+                        <app-line-extras
+                          [line]="summaryLine(line.key)"
+                          [emptyText]="i18n.t('checkout.noExtras')"
+                        />
+                      </p>
                       <app-qty-stepper
                         class="mt-2"
                         size="sm"
@@ -406,10 +413,8 @@ export class CheckoutPage {
     }
   }
 
-  protected extras(key: string): string {
-    return (
-      this.lines().find((line) => line.key === key)?.extras || this.i18n.t('checkout.noExtras')
-    );
+  protected summaryLine(key: string): SummaryLine | undefined {
+    return this.lines().find((line) => line.key === key);
   }
 
   protected errorFor(field: 'name' | 'phone'): string | null {

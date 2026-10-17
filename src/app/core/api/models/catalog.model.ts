@@ -12,7 +12,7 @@ export interface CategoryResponse {
   sortOrder: number;
   active: boolean;
   palette: PlatePaletteDto | null;
-  productCount: number;
+  productCount?: number;
 }
 
 export interface CategoryUpsertRequest {
@@ -44,6 +44,7 @@ export interface OptionGroupResponse {
   nameEn: string;
   minSelect: number;
   maxSelect: number;
+  defaultSelected?: boolean;
   active: boolean;
   sortOrder: number;
   items: OptionItemResponse[];
@@ -55,6 +56,7 @@ export interface OptionItemUpsert {
   nameEn: string;
   extraPrice: number;
   available: boolean;
+  sortOrder: number;
 }
 
 export interface OptionGroupUpsertRequest {
@@ -62,7 +64,9 @@ export interface OptionGroupUpsertRequest {
   nameEn: string;
   minSelect: number;
   maxSelect: number;
+  defaultSelected?: boolean;
   active: boolean;
+  sortOrder: number;
   items: OptionItemUpsert[];
 }
 
@@ -86,7 +90,8 @@ export interface ProductResponse {
   rating: number;
   reviews: number;
   palette: PlatePaletteDto | null;
-  optionGroupIds: number[];
+  optionGroupIds?: number[];
+  optionGroups?: OptionGroupResponse[];
 }
 
 export interface PublicProductResponse extends ProductResponse {
@@ -130,7 +135,6 @@ export interface ProductDetailResponse extends ProductSummaryResponse {
 
 export interface ProductUpsertRequest {
   categoryId: number;
-  code: string;
   name: string;
   nameEn: string;
   description: string;

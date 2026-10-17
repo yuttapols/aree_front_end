@@ -132,9 +132,9 @@ function buildLines(state: MockState, items: CartItemRequest[]): PricedLine[] {
       }
       return {
         optionItemId: option.id,
-        optionGroupName: group.name,
-        optionName: option.name,
-        optionNameEn: option.nameEn,
+        groupName: group.name,
+        name: option.name,
+        nameEn: option.nameEn,
         extraPrice: option.extraPrice,
       };
     });
@@ -568,6 +568,7 @@ export function expirePoints(state: MockState, now: Date): void {
 
 export interface CreateOrderInput {
   channel: OrderChannel;
+  payLater?: boolean;
   pricing: PricingResult;
   customer: MockUser | null;
   guestName: string | null;
@@ -612,8 +613,27 @@ export function createOrder(state: MockState, input: CreateOrderInput): MockOrde
     cancelledAt: null,
     cancelReason: null,
   };
+  if (input.payLater) {
+    order.payLater = true;
+    order.status = 'CONFIRMED';
+    order.confirmedAt = input.now.toISOString();
+  }
   state.orders.push(order);
-  for (const applied of quote.appliedPromotions) {
+  claimPromotionUsages(state, order, quote.appliedPromotions, input.now);
+  if (input.customer && quote.pointsRedeemed > 0) {
+    redeemPoints(state, input.customer, order, quote.pointsRedeemed, input.now);
+  }
+  confirmIfPaid(state, order, input.now);
+  return order;
+}
+
+function claimPromotionUsages(
+  state: MockState,
+  order: MockOrder,
+  appliedPromotions: AppliedPromotion[],
+  now: Date,
+): void {
+  for (const applied of appliedPromotions) {
     const promotion = state.promotions.find((candidate) => candidate.id === applied.promotionId);
     if (!promotion) {
       continue;
@@ -628,14 +648,170 @@ export function createOrder(state: MockState, input: CreateOrderInput): MockOrde
       orderId: order.id,
       customerId: order.customerId,
       discountAmount: applied.discountAmount,
-      createdAt: input.now.toISOString(),
+      createdAt: now.toISOString(),
     });
   }
-  if (input.customer && quote.pointsRedeemed > 0) {
-    redeemPoints(state, input.customer, order, quote.pointsRedeemed, input.now);
+}
+
+function releasePromotionUsages(state: MockState, order: MockOrder): void {
+  const usages = state.promotionUsages.filter((usage) => usage.orderId === order.id);
+  for (const usage of usages) {
+    const promotion = state.promotions.find((candidate) => candidate.id === usage.promotionId);
+    if (promotion) {
+      promotion.usedCount = Math.max(0, promotion.usedCount - 1);
+    }
   }
-  confirmIfPaid(state, order, input.now);
-  return order;
+  state.promotionUsages = state.promotionUsages.filter((usage) => usage.orderId !== order.id);
+}
+
+function repriceOrder(
+  state: MockState,
+  order: MockOrder,
+  items: CartItemRequest[],
+  customer: MockUser | null,
+  now: Date,
+): PricingResult {
+  const customerWithRefund =
+    customer?.profile && order.pointsRedeemed > 0
+      ? {
+          ...customer,
+          profile: {
+            ...customer.profile,
+            pointsBalance: customer.profile.pointsBalance + order.pointsRedeemed,
+          },
+        }
+      : customer;
+  const promoCode =
+    order.appliedPromotions
+      .map((applied) => state.promotions.find((candidate) => candidate.id === applied.promotionId))
+      .find((promotion) => promotion?.code)?.code ?? null;
+  const attempts = [
+    { promoCode, redeemPoints: order.pointsRedeemed },
+    { promoCode, redeemPoints: 0 },
+    { promoCode: null, redeemPoints: 0 },
+  ];
+  let lastError: unknown = null;
+  for (const attempt of attempts) {
+    try {
+      const pricing = priceCart(state, {
+        channel: order.channel,
+        items,
+        promoCode: attempt.promoCode,
+        redeemPoints: attempt.redeemPoints,
+        customer: customerWithRefund,
+        now,
+      });
+      if (!pricing.promoCodeErrorCode) {
+        return pricing;
+      }
+    } catch (error) {
+      if (!isMockHttpError(error)) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+  throw lastError ?? unprocessable('ORDER_INVALID_STATUS', order.orderNo);
+}
+
+export function orderItemId(order: MockOrder, index: number): number {
+  return order.id * 1000 + index + 1;
+}
+
+const EDITABLE_STATUSES: OrderStatus[] = ['PENDING_PAYMENT', 'CONFIRMED'];
+
+export function updateOrderItem(
+  state: MockState,
+  order: MockOrder,
+  itemId: number,
+  item: CartItemRequest,
+  now: Date,
+): void {
+  if (order.channel !== 'WALK_IN') {
+    throw unprocessable('INVALID_OPERATION', 'walk-in orders only');
+  }
+  if (!EDITABLE_STATUSES.includes(order.status)) {
+    throw unprocessable('ORDER_INVALID_STATUS', `${order.status}: items are locked`);
+  }
+  if (order.pointsRedeemed > 0) {
+    throw unprocessable('INVALID_OPERATION', 'order used points');
+  }
+  const index = order.items.findIndex((_, position) => orderItemId(order, position) === itemId);
+  if (index < 0) {
+    throw notFound('Order item not found');
+  }
+  const items: CartItemRequest[] = order.items.map((line, position) =>
+    position === index ? item : toCartItem(state, line),
+  );
+  const customer = findUser(state, order.customerId);
+  const pricing = repriceOrder(state, order, items, customer, now);
+  const quote = pricing.quote;
+  const paid = paidAmount(state, order.id);
+  if (quote.totalAmount < paid) {
+    throw unprocessable('PAYMENT_AMOUNT_MISMATCH', `${quote.totalAmount} < ${paid}`);
+  }
+  releasePromotionUsages(state, order);
+  order.items = quote.items;
+  order.subtotal = quote.subtotal;
+  order.promotionDiscount = quote.promotionDiscount;
+  order.pointDiscount = quote.pointDiscount;
+  order.totalAmount = quote.totalAmount;
+  order.pointsToEarn = customer ? quote.pointsToEarn : 0;
+  order.pointMultiplier = pricing.pointMultiplier;
+  order.appliedPromotions = quote.appliedPromotions;
+  claimPromotionUsages(state, order, quote.appliedPromotions, now);
+  if (paid >= order.totalAmount) {
+    order.payLater = false;
+    confirmIfPaid(state, order, now);
+  } else if (order.status === 'CONFIRMED') {
+    order.payLater = true;
+  }
+}
+
+function toCartItem(state: MockState, line: OrderItemResponse): CartItemRequest {
+  const product = state.products.find((candidate) => candidate.id === line.productId);
+  const groups = state.optionGroups.filter((group) =>
+    (product?.optionGroupIds ?? []).includes(group.id),
+  );
+  const optionItemIds = line.options
+    .map(
+      (option) =>
+        option.optionItemId ??
+        groups
+          .find((group) => group.name === option.groupName)
+          ?.items.find((candidate) => candidate.name === option.name)?.id,
+    )
+    .filter((id): id is number => id != null);
+  return { productId: line.productId, quantity: line.quantity, optionItemIds, note: line.note };
+}
+
+export function completeOrder(state: MockState, order: MockOrder, now: Date, by: string): void {
+  if (paidAmount(state, order.id) < order.totalAmount) {
+    throw unprocessable('ORDER_INVALID_STATUS', `${order.orderNo}: payment required`);
+  }
+  confirmIfPaid(state, order, now);
+  if (!['CONFIRMED', 'PREPARING', 'READY'].includes(order.status)) {
+    throw unprocessable('ORDER_INVALID_STATUS', `${order.status} → COMPLETED`);
+  }
+  order.payLater = false;
+  transitionOrder(state, order, 'COMPLETED', now, by);
+}
+
+export function markPayLater(state: MockState, order: MockOrder, now: Date): void {
+  if (order.status !== 'PENDING_PAYMENT') {
+    throw unprocessable('ORDER_INVALID_STATUS', `${order.status} → pay later`);
+  }
+  order.payLater = true;
+  order.status = 'CONFIRMED';
+  order.confirmedAt = now.toISOString();
+}
+
+export function isPayLaterOpen(state: MockState, order: MockOrder): boolean {
+  return (
+    !!order.payLater &&
+    order.status !== 'CANCELLED' &&
+    paidAmount(state, order.id) < order.totalAmount
+  );
 }
 
 export function paidAmount(state: MockState, orderId: number): number {
@@ -665,6 +841,9 @@ export function transitionOrder(
   }
   if (!ALLOWED_TRANSITIONS[order.status].includes(target)) {
     throw unprocessable('ORDER_INVALID_STATUS', `${order.status} → ${target}`);
+  }
+  if (target === 'COMPLETED' && isPayLaterOpen(state, order)) {
+    throw unprocessable('ORDER_INVALID_STATUS', `${order.orderNo}: payment required`);
   }
   order.status = target;
   const at = now.toISOString();
@@ -705,14 +884,7 @@ export function cancelOrder(
       payment.rejectReason = reason.trim();
     }
   }
-  const usages = state.promotionUsages.filter((usage) => usage.orderId === order.id);
-  for (const usage of usages) {
-    const promotion = state.promotions.find((candidate) => candidate.id === usage.promotionId);
-    if (promotion) {
-      promotion.usedCount = Math.max(0, promotion.usedCount - 1);
-    }
-  }
-  state.promotionUsages = state.promotionUsages.filter((usage) => usage.orderId !== order.id);
+  releasePromotionUsages(state, order);
 }
 
 export interface AddPaymentInput {
@@ -995,13 +1167,14 @@ export function toOrder(state: MockState, order: MockOrder): OrderResponse {
       : null,
     guestName: order.guestName,
     guestPhone: order.guestPhone,
-    items: order.items,
+    items: order.items.map((item, index) => ({ ...item, id: orderItemId(order, index) })),
     subtotal: order.subtotal,
     promotionDiscount: order.promotionDiscount,
     pointDiscount: order.pointDiscount,
     totalAmount: order.totalAmount,
     paidAmount: paidAmount(state, order.id),
     remainingAmount: roundMoney(order.totalAmount - paidAmount(state, order.id)),
+    payLater: isPayLaterOpen(state, order),
     pointsRedeemed: order.pointsRedeemed,
     pointsEarned: order.pointsEarned,
     pointsToEarn: order.pointsToEarn,
@@ -1044,9 +1217,7 @@ export function toPointTransaction(
 export function toCategory(state: MockState, category: MockCategory): CategoryResponse {
   return {
     ...category,
-    productCount: state.products.filter(
-      (product) => product.categoryId === category.id && product.active,
-    ).length,
+    productCount: state.products.filter((product) => product.categoryId === category.id).length,
   };
 }
 

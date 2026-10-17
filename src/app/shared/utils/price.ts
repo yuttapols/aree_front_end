@@ -18,3 +18,10 @@ export function formatCompact(value: number): string {
 export function sumOptionPrices(options: { price: number }[]): number {
   return options.reduce((total, option) => total + option.price, 0);
 }
+
+export function outstandingAmount(order: {
+  remainingAmount?: number;
+  totalAmount: number;
+}): number {
+  return Number.isFinite(order.remainingAmount) ? order.remainingAmount! : order.totalAmount;
+}

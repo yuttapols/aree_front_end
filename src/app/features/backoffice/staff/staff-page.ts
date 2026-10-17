@@ -179,7 +179,7 @@ import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
             />
           </app-form-field>
         }
-        <div class="flex justify-end gap-2 sm:col-span-2">
+        <div class="dialog-actions flex justify-end gap-2 sm:col-span-2">
           <p-button
             [label]="i18n.t('common.cancel')"
             [text]="true"

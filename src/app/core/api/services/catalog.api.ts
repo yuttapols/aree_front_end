@@ -42,7 +42,7 @@ export class CatalogApi {
   }
 
   deleteCategory(id: number): Observable<void> {
-    return this.api.delete<void>(`/admin/categories/${id}`);
+    return this.api.delete<void>(`/admin/categories/${id}`, { silent: true });
   }
 
   sortCategories(items: SortOrderItem[]): Observable<void> {
@@ -51,6 +51,10 @@ export class CatalogApi {
 
   products(query: ProductQuery): Observable<PageResponse<ProductResponse>> {
     return this.api.get<PageResponse<ProductResponse>>('/admin/products', { ...query });
+  }
+
+  adminProduct(id: number): Observable<ProductResponse> {
+    return this.api.get<ProductResponse>(`/admin/products/${id}`);
   }
 
   createProduct(request: ProductUpsertRequest): Observable<ProductResponse> {

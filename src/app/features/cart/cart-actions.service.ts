@@ -6,7 +6,11 @@ import { CartService } from '../../core/cart/cart.service';
 import { CatalogStore } from '../../core/catalog/catalog.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { MenuItem, MenuOption } from '../../core/models/menu.model';
-import { isSelectionValid } from '../../shared/utils/options';
+import {
+  defaultSelection,
+  isSelectionValid,
+  resolveOrderOptions,
+} from '../../shared/utils/options';
 
 export interface ReorderResult {
   added: number;
@@ -22,16 +26,16 @@ export class CartActions {
 
   readonly optionsItem = signal<MenuItem | null>(null);
 
-  add(item: MenuItem, options: MenuOption[] = [], qty = 1): void {
+  add(item: MenuItem, options?: MenuOption[], qty = 1): void {
     if (!item.optionsLoaded) {
       this.catalog.withOptions(item).subscribe((detailed) => this.add(detailed, options, qty));
       return;
     }
-    if (!options.length && item.optionGroups.some((group) => group.minSelect > 0)) {
+    if (!options && item.optionGroups.some((group) => group.minSelect > 0)) {
       this.openOptions(item);
       return;
     }
-    this.cart.add(item, options, qty);
+    this.cart.add(item, options ?? defaultSelection(item.optionGroups), qty);
     this.messages.add({
       severity: 'success',
       summary: this.i18n.t('toast.added'),
@@ -73,12 +77,7 @@ export class CartActions {
   }
 
   private resolveOptions(item: MenuItem, orderItem: OrderItemResponse): MenuOption[] | null {
-    const available = new Map(
-      item.optionGroups
-        .flatMap((group) => group.options)
-        .map((option) => [option.optionItemId, option]),
-    );
-    const options = orderItem.options.map((option) => available.get(option.optionItemId));
+    const options = resolveOrderOptions(item, orderItem.options);
     if (options.some((option) => option !== undefined && !option.available)) {
       return null;
     }

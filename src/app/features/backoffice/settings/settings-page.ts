@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -16,12 +17,14 @@ import { OrderApi } from '../../../core/api/services/order.api';
 import { UserApi } from '../../../core/api/services/user.api';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ShopInfoStore } from '../../../core/shop/shop-info.store';
+import { BrandLogo } from '../../../shared/components/brand-logo/brand-logo';
 import { Crumb } from '../../../shared/components/breadcrumbs/breadcrumbs';
-import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { FormField } from '../../../shared/components/form-field/form-field';
+import { SaveBar } from '../../../shared/components/save-bar/save-bar';
+import { SettingsSection } from '../../../shared/components/settings-section/settings-section';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
-import { Panel } from '../../../shared/components/panel/panel';
-import { StatusTag } from '../../../shared/components/status-tag/status-tag';
+
 import {
   paymentMethodCode,
   requiredText,
@@ -31,6 +34,19 @@ import {
 import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const MINUTES_PER_DAY = 24 * 60;
+
+function minutesOf(time: string): number | null {
+  return TIME_PATTERN.test(time) ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) : null;
+}
+
+const METHOD_ICONS: Record<string, string> = {
+  CASH: 'pi pi-money-bill',
+  TRANSFER: 'pi pi-building-columns',
+  PROMPTPAY: 'pi pi-qrcode',
+  CARD: 'pi pi-credit-card',
+};
 
 @Component({
   selector: 'app-settings-page',
@@ -44,11 +60,12 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
     TabsModule,
     TextareaModule,
     ToggleSwitchModule,
-    DataTable,
+    BrandLogo,
+    EmptyState,
+    SaveBar,
+    SettingsSection,
     FormField,
     PageHeader,
-    Panel,
-    StatusTag,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -67,219 +84,395 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
         </p-tablist>
         <p-tabpanels class="!bg-transparent !px-0">
           <p-tabpanel value="shop">
-            <app-panel>
-              <form
-                class="grid gap-4 md:grid-cols-2"
-                [formGroup]="form"
-                (ngSubmit)="save()"
-                novalidate
-              >
-                <app-form-field inputId="s-name" [label]="i18n.t('settings.shopName') + ' *'">
-                  <input
-                    pInputText
-                    id="s-name"
-                    formControlName="shopName"
-                    class="rounded-xl"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-phone" [label]="i18n.t('register.phone')">
-                  <input
-                    pInputText
-                    id="s-phone"
-                    formControlName="shopPhone"
-                    class="rounded-xl"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field
-                  class="md:col-span-2"
-                  inputId="s-address"
-                  [label]="i18n.t('settings.address')"
+            <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+              <form class="grid gap-6" [formGroup]="form" (ngSubmit)="save()" novalidate>
+                <app-settings-section
+                  icon="pi pi-shop"
+                  [heading]="i18n.t('settings.section.profile')"
+                  [description]="i18n.t('settings.section.profileHint')"
                 >
-                  <textarea
-                    pTextarea
-                    id="s-address"
-                    formControlName="address"
-                    rows="2"
-                    class="w-full rounded-xl"
-                  ></textarea>
-                </app-form-field>
-                <app-form-field inputId="s-open" [label]="i18n.t('settings.openTime')" hint="HH:mm">
-                  <input
-                    pInputText
-                    id="s-open"
-                    formControlName="openTime"
-                    class="rounded-xl"
-                    [fluid]="true"
-                    placeholder="16:00"
-                  />
-                </app-form-field>
-                <app-form-field
-                  inputId="s-close"
-                  [label]="i18n.t('settings.closeTime')"
-                  hint="HH:mm"
+                  <div class="grid gap-4 md:grid-cols-2">
+                    <app-form-field inputId="s-name" [label]="i18n.t('settings.shopName') + ' *'">
+                      <input
+                        pInputText
+                        id="s-name"
+                        formControlName="shopName"
+                        class="rounded-xl"
+                        [fluid]="true"
+                      />
+                    </app-form-field>
+                    <app-form-field inputId="s-phone" [label]="i18n.t('register.phone')">
+                      <input
+                        pInputText
+                        id="s-phone"
+                        type="tel"
+                        inputmode="numeric"
+                        formControlName="shopPhone"
+                        class="rounded-xl"
+                        placeholder="0812345678"
+                        [fluid]="true"
+                      />
+                    </app-form-field>
+                    <app-form-field
+                      class="md:col-span-2"
+                      inputId="s-address"
+                      [label]="i18n.t('settings.address')"
+                    >
+                      <textarea
+                        pTextarea
+                        id="s-address"
+                        formControlName="address"
+                        rows="3"
+                        [autoResize]="true"
+                        class="w-full rounded-xl"
+                      ></textarea>
+                    </app-form-field>
+                  </div>
+                </app-settings-section>
+
+                <app-settings-section
+                  icon="pi pi-clock"
+                  [heading]="i18n.t('settings.section.hours')"
+                  [description]="i18n.t('settings.section.hoursHint')"
                 >
-                  <input
-                    pInputText
-                    id="s-close"
-                    formControlName="closeTime"
-                    class="rounded-xl"
-                    [fluid]="true"
-                    placeholder="23:00"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-promptpay" [label]="i18n.t('settings.promptpay')">
-                  <input
-                    pInputText
-                    id="s-promptpay"
-                    formControlName="promptpayId"
-                    class="rounded-xl"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-bank" [label]="i18n.t('settings.bankAccount')">
-                  <input
-                    pInputText
-                    id="s-bank"
-                    formControlName="bankAccount"
-                    class="rounded-xl"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <label class="text-ink flex items-center gap-3 text-sm md:col-span-2">
-                  <p-toggleswitch formControlName="acceptOnlineOrder" />{{
-                    i18n.t('settings.acceptOnline')
-                  }}
+                  @if (hoursDuration(); as hours) {
+                    <span
+                      sectionActions
+                      class="bg-accent-soft text-accent rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap"
+                      >{{ i18n.t('settings.hoursDuration', { n: hours }) }}</span
+                    >
+                  }
+                  <div class="grid items-end gap-4 sm:grid-cols-[1fr_auto_1fr]">
+                    <app-form-field inputId="s-open" [label]="i18n.t('settings.openTime')">
+                      <input
+                        pInputText
+                        id="s-open"
+                        type="time"
+                        formControlName="openTime"
+                        class="rounded-xl text-lg font-semibold tabular-nums"
+                        [fluid]="true"
+                      />
+                    </app-form-field>
+                    <i
+                      class="pi pi-arrow-right text-ink-muted hidden pb-3.5 sm:block"
+                      aria-hidden="true"
+                    ></i>
+                    <app-form-field inputId="s-close" [label]="i18n.t('settings.closeTime')">
+                      <input
+                        pInputText
+                        id="s-close"
+                        type="time"
+                        formControlName="closeTime"
+                        class="rounded-xl text-lg font-semibold tabular-nums"
+                        [fluid]="true"
+                      />
+                    </app-form-field>
+                  </div>
+                </app-settings-section>
+
+                <app-settings-section
+                  icon="pi pi-wallet"
+                  [heading]="i18n.t('settings.section.payment')"
+                  [description]="i18n.t('settings.section.paymentHint')"
+                >
+                  <div class="grid gap-4 md:grid-cols-2">
+                    <app-form-field inputId="s-promptpay" [label]="i18n.t('settings.promptpay')">
+                      <input
+                        pInputText
+                        id="s-promptpay"
+                        inputmode="numeric"
+                        formControlName="promptpayId"
+                        class="rounded-xl tabular-nums"
+                        placeholder="0812345678"
+                        [fluid]="true"
+                      />
+                    </app-form-field>
+                    <app-form-field inputId="s-bank" [label]="i18n.t('settings.bankAccount')">
+                      <input
+                        pInputText
+                        id="s-bank"
+                        formControlName="bankAccount"
+                        class="rounded-xl"
+                        [fluid]="true"
+                      />
+                    </app-form-field>
+                  </div>
+                </app-settings-section>
+
+                <label
+                  for="s-online"
+                  class="animate-rise flex cursor-pointer items-center gap-4 rounded-3xl border p-5 transition-colors md:px-6"
+                  [class.border-emerald-300]="formValue().acceptOnlineOrder"
+                  [class.bg-emerald-50]="formValue().acceptOnlineOrder"
+                  [class.dark:border-emerald-700]="formValue().acceptOnlineOrder"
+                  [class.dark:bg-emerald-950/40]="formValue().acceptOnlineOrder"
+                  [class.border-line]="!formValue().acceptOnlineOrder"
+                  [class.bg-card]="!formValue().acceptOnlineOrder"
+                >
+                  <span
+                    class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg transition-colors"
+                    [class.bg-emerald-500]="formValue().acceptOnlineOrder"
+                    [class.text-white]="formValue().acceptOnlineOrder"
+                    [class.bg-canvas]="!formValue().acceptOnlineOrder"
+                    [class.text-ink-muted]="!formValue().acceptOnlineOrder"
+                    aria-hidden="true"
+                  >
+                    <i class="pi pi-globe"></i>
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="font-display text-ink block text-lg leading-tight font-bold">{{
+                      i18n.t('settings.section.online')
+                    }}</span>
+                    <span class="text-ink-muted block text-sm">{{
+                      formValue().acceptOnlineOrder
+                        ? i18n.t('settings.section.onlineOn')
+                        : i18n.t('settings.section.onlineOff')
+                    }}</span>
+                  </span>
+                  <p-toggleswitch inputId="s-online" formControlName="acceptOnlineOrder" />
                 </label>
-                <div class="flex justify-end md:col-span-2">
-                  <p-button
-                    type="submit"
-                    [label]="i18n.t('common.save')"
-                    icon="pi pi-check"
-                    [rounded]="true"
-                    [loading]="saving()"
-                  />
-                </div>
               </form>
-            </app-panel>
+
+              <aside class="lg:sticky lg:top-24" [attr.aria-label]="i18n.t('settings.preview')">
+                <p
+                  class="text-ink-muted mb-2 flex items-center gap-2 text-xs font-bold tracking-wide uppercase"
+                >
+                  <i class="pi pi-eye" aria-hidden="true"></i>{{ i18n.t('settings.preview') }}
+                </p>
+                <div class="bg-card border-line shadow-soft overflow-hidden rounded-3xl border">
+                  <div class="bg-royal flex items-center gap-3 px-5 py-5 text-white">
+                    <app-brand-logo class="h-14" />
+                    <div class="min-w-0">
+                      <p class="font-display truncate text-xl font-extrabold">
+                        {{ formValue().shopName || i18n.t('brand.name') }}
+                      </p>
+                      <span
+                        class="mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                        [class.bg-emerald-400/20]="formValue().acceptOnlineOrder"
+                        [class.text-emerald-100]="formValue().acceptOnlineOrder"
+                        [class.bg-white/15]="!formValue().acceptOnlineOrder"
+                        [class.text-white/80]="!formValue().acceptOnlineOrder"
+                      >
+                        <span
+                          class="h-1.5 w-1.5 rounded-full"
+                          [class.bg-emerald-300]="formValue().acceptOnlineOrder"
+                          [class.bg-white/60]="!formValue().acceptOnlineOrder"
+                        ></span>
+                        {{
+                          formValue().acceptOnlineOrder
+                            ? i18n.t('settings.previewOpen')
+                            : i18n.t('settings.previewClosed')
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                  <dl class="divide-line divide-y px-5 text-sm">
+                    @for (row of previewRows(); track row.icon) {
+                      <div class="flex gap-3 py-3">
+                        <dt class="text-brand w-5 shrink-0 pt-0.5">
+                          <i [class]="row.icon" aria-hidden="true"></i>
+                          <span class="sr-only">{{ row.label }}</span>
+                        </dt>
+                        <dd
+                          class="min-w-0 break-words"
+                          [class.text-ink]="row.value"
+                          [class.text-ink-muted]="!row.value"
+                          [class.italic]="!row.value"
+                        >
+                          {{ row.value || i18n.t('settings.previewEmpty') }}
+                        </dd>
+                      </div>
+                    }
+                  </dl>
+                </div>
+              </aside>
+            </div>
           </p-tabpanel>
 
           <p-tabpanel value="points">
-            <app-panel [subtitle]="i18n.t('settings.pointsHint')">
-              <form
-                class="grid gap-4 md:grid-cols-2"
-                [formGroup]="form"
-                (ngSubmit)="save()"
-                novalidate
+            <form class="max-w-4xl" [formGroup]="form" (ngSubmit)="save()" novalidate>
+              <app-settings-section
+                icon="pi pi-star"
+                [heading]="i18n.t('settings.section.points')"
+                [description]="i18n.t('settings.pointsHint')"
               >
-                <app-form-field inputId="s-earn" [label]="i18n.t('settings.earnBahtPerPoint')">
-                  <p-inputnumber
-                    inputId="s-earn"
-                    formControlName="earnBahtPerPoint"
-                    [min]="1"
-                    suffix=" ฿ / 1 pt"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-redeem" [label]="i18n.t('settings.redeemPointsPerBaht')">
-                  <p-inputnumber
+                <div class="grid gap-4 md:grid-cols-2">
+                  <app-form-field inputId="s-earn" [label]="i18n.t('settings.earnBahtPerPoint')">
+                    <p-inputnumber
+                      inputId="s-earn"
+                      formControlName="earnBahtPerPoint"
+                      [min]="1"
+                      suffix=" ฿ / 1 pt"
+                      [fluid]="true"
+                    />
+                  </app-form-field>
+                  <app-form-field
                     inputId="s-redeem"
-                    formControlName="redeemPointsPerBaht"
-                    [min]="1"
-                    suffix=" pt / 1 ฿"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-min" [label]="i18n.t('settings.redeemMinPoints')">
-                  <p-inputnumber
-                    inputId="s-min"
-                    formControlName="redeemMinPoints"
-                    [min]="1"
-                    suffix=" pt"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-max" [label]="i18n.t('settings.redeemMaxPercent')">
-                  <p-inputnumber
-                    inputId="s-max"
-                    formControlName="redeemMaxPercent"
-                    [min]="1"
-                    [max]="100"
-                    suffix=" %"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <app-form-field inputId="s-expire" [label]="i18n.t('settings.expireDays')">
-                  <p-inputnumber
-                    inputId="s-expire"
-                    formControlName="expireDays"
-                    [min]="1"
-                    [fluid]="true"
-                  />
-                </app-form-field>
-                <div class="flex items-end justify-end md:col-span-2">
-                  <p-button
-                    type="submit"
-                    [label]="i18n.t('common.save')"
-                    icon="pi pi-check"
-                    [rounded]="true"
-                    [loading]="saving()"
-                  />
+                    [label]="i18n.t('settings.redeemPointsPerBaht')"
+                  >
+                    <p-inputnumber
+                      inputId="s-redeem"
+                      formControlName="redeemPointsPerBaht"
+                      [min]="1"
+                      suffix=" pt / 1 ฿"
+                      [fluid]="true"
+                    />
+                  </app-form-field>
+                  <app-form-field inputId="s-min" [label]="i18n.t('settings.redeemMinPoints')">
+                    <p-inputnumber
+                      inputId="s-min"
+                      formControlName="redeemMinPoints"
+                      [min]="1"
+                      suffix=" pt"
+                      [fluid]="true"
+                    />
+                  </app-form-field>
+                  <app-form-field inputId="s-max" [label]="i18n.t('settings.redeemMaxPercent')">
+                    <p-inputnumber
+                      inputId="s-max"
+                      formControlName="redeemMaxPercent"
+                      [min]="1"
+                      [max]="100"
+                      suffix=" %"
+                      [fluid]="true"
+                    />
+                  </app-form-field>
+                  <app-form-field inputId="s-expire" [label]="i18n.t('settings.expireDays')">
+                    <p-inputnumber
+                      inputId="s-expire"
+                      formControlName="expireDays"
+                      [min]="1"
+                      [fluid]="true"
+                    />
+                  </app-form-field>
                 </div>
-              </form>
-            </app-panel>
+              </app-settings-section>
+            </form>
           </p-tabpanel>
 
           <p-tabpanel value="payments">
-            <app-panel>
+            <app-settings-section
+              icon="pi pi-wallet"
+              [heading]="i18n.t('settings.payments')"
+              [description]="
+                i18n.t('settings.methodsHint', { n: activeMethodCount(), total: methods().length })
+              "
+            >
               <p-button
-                panelActions
+                sectionActions
                 [label]="i18n.t('common.add')"
                 icon="pi pi-plus"
                 [rounded]="true"
                 (onClick)="editMethod(null)"
               />
-              <app-data-table
-                [rows]="methods()"
-                [columns]="methodColumns()"
-                [lazy]="false"
-                [total]="methods().length"
-                [emptyTitle]="'-'"
-              >
-                <ng-template #cell let-row let-column="column">
-                  @switch (column.key) {
-                    @case ('active') {
-                      <p-toggleswitch
-                        [ngModel]="row.active"
-                        (ngModelChange)="patchMethod(row, { active: $event })"
-                      />
-                    }
-                    @case ('allowOnline') {
-                      <p-toggleswitch
-                        [ngModel]="row.allowOnline"
-                        (ngModelChange)="patchMethod(row, { allowOnline: $event })"
-                      />
-                    }
-                    @case ('requiresSlip') {
-                      <app-status-tag kind="active" [value]="row.requiresSlip" />
-                    }
-                    @case ('actions') {
-                      <p-button
-                        icon="pi pi-pencil"
-                        [text]="true"
-                        [rounded]="true"
-                        [ariaLabel]="i18n.t('common.edit')"
-                        (onClick)="editMethod(row)"
-                      />
-                    }
+              @if (methods().length) {
+                <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                  @for (method of methods(); track method.id) {
+                    <article
+                      class="bg-card group relative flex flex-col overflow-hidden rounded-3xl border-2 transition hover:-translate-y-0.5 hover:shadow-lg"
+                      [class]="
+                        method.active
+                          ? 'border-line hover:border-brand/40'
+                          : 'border-dashed border-line opacity-70'
+                      "
+                    >
+                      <div
+                        class="relative flex items-center gap-4 p-5"
+                        [class]="
+                          method.active ? 'from-brand-soft to-card bg-gradient-to-br' : 'bg-canvas'
+                        "
+                      >
+                        <span
+                          class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-2xl shadow-sm"
+                          [class]="method.active ? 'bg-royal text-white' : 'bg-card text-ink-muted'"
+                        >
+                          <i [class]="methodIcon(method)"></i>
+                        </span>
+                        <div class="min-w-0 flex-1">
+                          <p class="font-display text-ink truncate text-lg font-bold">
+                            {{ i18n.name(method) }}
+                          </p>
+                          <span
+                            class="bg-card text-ink-muted border-line mt-1 inline-block rounded-md border px-2 py-0.5 font-mono text-[0.7rem] font-semibold tracking-wider"
+                            >{{ method.code }}</span
+                          >
+                        </div>
+                        <p-button
+                          icon="pi pi-pencil"
+                          [rounded]="true"
+                          [outlined]="true"
+                          severity="secondary"
+                          [ariaLabel]="i18n.t('common.edit')"
+                          (onClick)="editMethod(method)"
+                        />
+                      </div>
+
+                      <div class="flex flex-1 flex-col gap-3 px-5 pb-5">
+                        @if (method.instruction) {
+                          <p class="text-ink-muted line-clamp-2 text-sm">
+                            {{ method.instruction }}
+                          </p>
+                        }
+                        <div class="flex flex-wrap gap-1.5">
+                          @if (method.requiresSlip) {
+                            <span
+                              class="bg-accent-soft text-accent rounded-full px-2.5 py-1 text-xs font-bold"
+                            >
+                              <i class="pi pi-image mr-1 text-[0.65rem]"></i
+                              >{{ i18n.t('settings.requiresSlip') }}
+                            </span>
+                          }
+                          @if (method.requiresReference) {
+                            <span
+                              class="bg-brand-soft text-brand rounded-full px-2.5 py-1 text-xs font-bold"
+                            >
+                              <i class="pi pi-hashtag mr-1 text-[0.65rem]"></i
+                              >{{ i18n.t('settings.requiresReference') }}
+                            </span>
+                          }
+                        </div>
+                        <div class="border-line mt-auto grid grid-cols-2 gap-2 border-t pt-3">
+                          <label
+                            class="bg-canvas flex cursor-pointer items-center justify-between gap-2 rounded-2xl px-3 py-2.5"
+                          >
+                            <span class="text-ink flex items-center gap-2 text-sm font-semibold">
+                              <i class="pi pi-globe text-brand text-xs"></i
+                              >{{ i18n.t('settings.allowOnline') }}
+                            </span>
+                            <p-toggleswitch
+                              [ngModel]="method.allowOnline"
+                              (ngModelChange)="patchMethod(method, { allowOnline: $event })"
+                            />
+                          </label>
+                          <label
+                            class="bg-canvas flex cursor-pointer items-center justify-between gap-2 rounded-2xl px-3 py-2.5"
+                          >
+                            <span class="text-ink flex items-center gap-2 text-sm font-semibold">
+                              <i
+                                class="pi pi-power-off text-xs"
+                                [class]="method.active ? 'text-green-600' : 'text-ink-muted'"
+                              ></i
+                              >{{ i18n.t('status.active.true') }}
+                            </span>
+                            <p-toggleswitch
+                              [ngModel]="method.active"
+                              (ngModelChange)="patchMethod(method, { active: $event })"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </article>
                   }
-                </ng-template>
-              </app-data-table>
-            </app-panel>
+                </div>
+              } @else {
+                <app-empty-state icon="pi pi-wallet" [title]="i18n.t('settings.noMethods')" />
+              }
+            </app-settings-section>
           </p-tabpanel>
         </p-tabpanels>
       </p-tabs>
+
+      <app-save-bar [visible]="dirty()" [saving]="saving()" (save)="save()" (discard)="discard()" />
     </div>
 
     <p-dialog
@@ -351,7 +544,7 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
             ><p-toggleswitch formControlName="active" />{{ i18n.t('status.active.true') }}</label
           >
         </div>
-        <div class="flex justify-end gap-2 sm:col-span-2">
+        <div class="dialog-actions flex justify-end gap-2 sm:col-span-2">
           <p-button
             [label]="i18n.t('common.cancel')"
             [text]="true"
@@ -413,25 +606,80 @@ export class SettingsPage {
     icon: ['', [Validators.maxLength(TEXT_LIMITS.shortText), Validators.pattern(/^[a-z0-9 -]*$/)]],
   });
 
-  protected readonly methodColumns = computed<TableColumn<PaymentMethodResponse>[]>(() => [
-    { key: 'code', label: this.i18n.t('catalog.code') },
-    { key: 'name', label: this.i18n.t('catalog.name'), value: (row) => this.i18n.name(row) },
-    { key: 'requiresSlip', label: this.i18n.t('settings.requiresSlip'), custom: true },
-    { key: 'allowOnline', label: this.i18n.t('settings.allowOnline'), custom: true },
-    { key: 'active', label: this.i18n.t('status.active.true'), custom: true },
-    { key: 'actions', label: '', align: 'right', width: '5rem', custom: true },
-  ]);
+  protected readonly activeMethodCount = computed(
+    () => this.methods().filter((method) => method.active).length,
+  );
+
+  protected methodIcon(method: PaymentMethodResponse): string {
+    if (method.icon) {
+      return method.icon.startsWith('pi') ? method.icon : `pi pi-${method.icon}`;
+    }
+    return METHOD_ICONS[method.code] ?? 'pi pi-wallet';
+  }
 
   constructor() {
     this.userApi.settings().subscribe((settings) => this.applySettings(settings));
     this.loadMethods();
   }
 
-  private loadedSettings: ShopSettings | null = null;
+  private readonly loadedSettings = signal<ShopSettings | null>(null);
+
+  protected readonly formValue = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+
+  protected readonly dirty = computed(() => {
+    const loaded = this.loadedSettings();
+    const value = this.formValue() as Partial<ShopSettings>;
+    return (
+      !!loaded &&
+      (Object.keys(this.form.controls) as (keyof ShopSettings)[]).some(
+        (key) => value[key] !== loaded[key],
+      )
+    );
+  });
+
+  protected readonly hoursDuration = computed(() => {
+    const open = minutesOf(this.formValue().openTime ?? '');
+    const close = minutesOf(this.formValue().closeTime ?? '');
+    if (open === null || close === null || open === close) {
+      return null;
+    }
+    const minutes = (close - open + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+    return Math.round((minutes / 60) * 10) / 10;
+  });
+
+  protected readonly previewRows = computed(() => {
+    const value = this.formValue();
+    const hours = value.openTime && value.closeTime ? `${value.openTime} – ${value.closeTime}` : '';
+    const payments = [
+      value.promptpayId ? `PromptPay ${value.promptpayId}` : '',
+      value.bankAccount ?? '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return [
+      { icon: 'pi pi-clock', label: this.i18n.t('settings.section.hours'), value: hours },
+      { icon: 'pi pi-phone', label: this.i18n.t('register.phone'), value: value.shopPhone ?? '' },
+      {
+        icon: 'pi pi-map-marker',
+        label: this.i18n.t('settings.address'),
+        value: value.address ?? '',
+      },
+      { icon: 'pi pi-wallet', label: this.i18n.t('settings.section.payment'), value: payments },
+    ];
+  });
 
   private applySettings(settings: ShopSettings): void {
-    this.loadedSettings = settings;
+    this.loadedSettings.set(settings);
     this.form.reset(settings);
+  }
+
+  protected discard(): void {
+    const loaded = this.loadedSettings();
+    if (loaded) {
+      this.form.reset(loaded);
+    }
   }
 
   protected save(): void {
@@ -442,7 +690,7 @@ export class SettingsPage {
     }
     this.saving.set(true);
     this.userApi
-      .updateSettings(this.form.getRawValue() as ShopSettings, this.loadedSettings)
+      .updateSettings(this.form.getRawValue() as ShopSettings, this.loadedSettings())
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe((settings) => {
         this.applySettings(settings);

@@ -4,10 +4,11 @@ import { AppliedPromotion } from '../../../core/api/models/order.model';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { MoneyPipe } from '../../pipes/money.pipe';
 import { SummaryLine } from '../../utils/order-lines';
+import { LineExtras } from '../line-extras/line-extras';
 
 @Component({
   selector: 'app-order-summary',
-  imports: [MoneyPipe],
+  imports: [LineExtras, MoneyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -20,7 +21,7 @@ import { SummaryLine } from '../../utils/order-lines';
                 {{ line.name }} <span class="text-ink-muted font-normal">×{{ line.qty }}</span>
               </p>
               <p class="text-ink-muted mt-0.5 text-xs">
-                {{ line.extras || i18n.t('checkout.noExtras') }}
+                <app-line-extras [line]="line" [emptyText]="i18n.t('checkout.noExtras')" />
               </p>
               @if (line.note) {
                 <p class="text-accent mt-0.5 text-xs">{{ line.note }}</p>
@@ -99,7 +100,10 @@ export class OrderSummary {
   readonly showLines = input(true);
   readonly subtotal = input.required<number>();
   readonly total = input.required<number>();
-  readonly promotions = input<AppliedPromotion[]>([]);
+  // OrderResponse / TrackResponse ไม่มี appliedPromotions (มีเฉพาะ QuoteResponse) — กัน undefined ไม่ให้ template พัง
+  readonly promotions = input<AppliedPromotion[], AppliedPromotion[] | null | undefined>([], {
+    transform: (value) => value ?? [],
+  });
   readonly pointDiscount = input(0);
   readonly pointsRedeemed = input(0);
   readonly pointsToEarn = input(0);

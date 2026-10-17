@@ -22,7 +22,14 @@ import { PointsChip } from '../../shared/components/points-chip/points-chip';
 import { QrCode } from '../../shared/components/qr-code/qr-code';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
 import { formatNumber, formatPhone, fromDateKey, toDateKey } from '../../shared/utils/format';
-import { compressImage } from '../../shared/utils/image';
+import {
+  checkImageFile,
+  compressImage,
+  IMAGE_ACCEPT,
+  IMAGE_MAX_BYTES,
+} from '../../shared/utils/image';
+
+const AVATAR_MAX_DIMENSION = 480;
 import {
   matchField,
   optionalEmail,
@@ -33,8 +40,6 @@ import {
   validationMessage,
 } from '../../shared/utils/validators';
 import { TEXT_LIMITS } from '../../shared/utils/sanitize';
-
-const AVATAR_TYPES = 'image/png,image/jpeg,image/webp';
 
 @Component({
   selector: 'app-profile-info',
@@ -343,7 +348,7 @@ export class ProfileInfo {
   protected readonly today = new Date();
   protected readonly phone = formatPhone;
   protected readonly format = formatNumber;
-  protected readonly avatarTypes = AVATAR_TYPES;
+  protected readonly avatarTypes = IMAGE_ACCEPT;
 
   protected readonly uploading = signal(false);
   protected readonly savingProfile = signal(false);
@@ -436,12 +441,19 @@ export class ProfileInfo {
     if (!original) {
       return;
     }
-    if (!AVATAR_TYPES.split(',').includes(original.type)) {
-      this.messages.add({ severity: 'error', summary: this.i18n.error('FILE_INVALID') });
+    const sourceError = await checkImageFile(original);
+    if (sourceError) {
+      this.messages.add({ severity: 'error', summary: this.i18n.error(sourceError) });
       return;
     }
     this.uploading.set(true);
-    const file = await compressImage(original, 480);
+    const compressed = await compressImage(original, AVATAR_MAX_DIMENSION);
+    const file = compressed.size < original.size ? compressed : original;
+    if (file.size > IMAGE_MAX_BYTES) {
+      this.uploading.set(false);
+      this.messages.add({ severity: 'error', summary: this.i18n.error('PAYLOAD_TOO_LARGE') });
+      return;
+    }
     this.api
       .uploadAvatar(file)
       .pipe(finalize(() => this.uploading.set(false)))

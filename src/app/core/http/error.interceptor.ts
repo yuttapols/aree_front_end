@@ -21,7 +21,9 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
         messages.add({
           severity: 'error',
           summary: i18n.error(exception.code),
-          detail: exception.fields.map((field) => field.message).join(', ') || undefined,
+          detail:
+            exception.fields.map((field) => `${field.field}: ${field.message}`).join(', ') ||
+            undefined,
         });
       }
       if (exception.code === 'ACCOUNT_SUSPENDED') {

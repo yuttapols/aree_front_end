@@ -1,17 +1,18 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal } from '@angular/core';
 
 import { PlatePalette } from '../../../core/models/menu.model';
+import { FileUrlPipe } from '../../pipes/file-url.pipe';
 import { FoodPlate } from '../food-plate/food-plate';
 
 @Component({
   selector: 'app-product-image',
-  imports: [FoodPlate],
+  imports: [FoodPlate, FileUrlPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
     @if (src() && !failed()) {
       <img
-        [src]="src()"
+        [src]="src() | fileUrl"
         [alt]="label()"
         loading="lazy"
         decoding="async"

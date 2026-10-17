@@ -25,6 +25,7 @@ export interface MenuOptionGroup {
   name: LocalizedText;
   minSelect: number;
   maxSelect: number;
+  defaultSelected: boolean;
   options: MenuOption[];
 }
 

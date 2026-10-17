@@ -6,6 +6,7 @@ import { ApiResponse } from '../api/models/common.model';
 import { registerAdminCatalogHandlers } from './handlers/admin-catalog.handlers';
 import { registerAdminOrderHandlers } from './handlers/admin-orders.handlers';
 import { registerAdminPromotionHandlers } from './handlers/admin-promotions.handlers';
+import { registerBannerHandlers } from './handlers/banners.handlers';
 import { registerAdminUserHandlers } from './handlers/admin-users.handlers';
 import { authenticate, registerAuthHandlers } from './handlers/auth.handlers';
 import { registerDashboardHandlers } from './handlers/dashboard.handlers';
@@ -26,6 +27,7 @@ export class MockBackend {
     registerAdminUserHandlers(this.router);
     registerAdminOrderHandlers(this.router);
     registerAdminPromotionHandlers(this.router);
+    registerBannerHandlers(this.router);
     registerDashboardHandlers(this.router);
   }
 

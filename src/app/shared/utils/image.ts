@@ -59,3 +59,37 @@ export async function hasImageSignature(file: Blob): Promise<boolean> {
     (startsWith(bytes, RIFF) && startsWith(bytes, WEBP, WEBP_MARKER_OFFSET))
   );
 }
+
+export const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const IMAGE_ACCEPT = IMAGE_MIME_TYPES.join(',');
+export const MEGABYTE = 1024 * 1024;
+export const IMAGE_MAX_BYTES = 5 * MEGABYTE;
+export const BANNER_IMAGE_MAX_BYTES = 2 * MEGABYTE;
+export const BANNER_IMAGE_MAX_DIMENSION = 1920;
+export const IMAGE_SOURCE_MAX_BYTES = 20 * MEGABYTE;
+
+export type ImageFileError = 'UNSUPPORTED_MEDIA_TYPE' | 'PAYLOAD_TOO_LARGE' | 'FILE_INVALID';
+
+export function isAllowedImageType(type: string): boolean {
+  return (IMAGE_MIME_TYPES as readonly string[]).includes(type);
+}
+
+export async function checkImageFile(
+  file: File,
+  maxBytes = IMAGE_SOURCE_MAX_BYTES,
+): Promise<ImageFileError | null> {
+  if (!isAllowedImageType(file.type)) {
+    return 'UNSUPPORTED_MEDIA_TYPE';
+  }
+  if (file.size === 0) {
+    return 'FILE_INVALID';
+  }
+  if (file.size > maxBytes) {
+    return 'PAYLOAD_TOO_LARGE';
+  }
+  return (await hasImageSignature(file)) ? null : 'UNSUPPORTED_MEDIA_TYPE';
+}
+
+export function bytesToMegabytes(bytes: number): number {
+  return Math.round((bytes / MEGABYTE) * 10) / 10;
+}

@@ -14,7 +14,7 @@ import { BrandLogo } from '../../shared/components/brand-logo/brand-logo';
       <div class="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-2 md:px-6">
         <div>
           <div class="flex items-center gap-4">
-            <app-brand-logo class="h-20" />
+            <app-brand-logo variant="wide" class="h-20" />
             <div>
               <p class="font-display text-accent text-3xl font-extrabold">
                 {{ i18n.t('brand.name') }}

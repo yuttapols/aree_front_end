@@ -26,7 +26,7 @@ import { MoneyPipe } from '../../../shared/pipes/money.pipe';
         <i
           class="pi pi-star-fill pointer-events-none absolute -top-8 -right-6 text-[8rem] text-white/10"
         ></i>
-        <app-brand-logo class="relative mx-auto block h-24" />
+        <app-brand-logo variant="wide" class="relative mx-auto block h-24" />
         <h2 class="font-display relative mt-4 text-2xl font-bold">
           {{ i18n.t('bo.today.confirmSettleTitle') }}
         </h2>

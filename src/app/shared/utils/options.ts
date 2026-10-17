@@ -1,4 +1,5 @@
-import { MenuOption, MenuOptionGroup } from '../../core/models/menu.model';
+import { OrderItemOptionResponse } from '../../core/api/models/order.model';
+import { MenuItem, MenuOption, MenuOptionGroup } from '../../core/models/menu.model';
 
 export function isSelectionValid(groups: MenuOptionGroup[], selected: MenuOption[]): boolean {
   const ids = selected.map((option) => option.id);
@@ -11,12 +12,35 @@ export function isSelectionValid(groups: MenuOptionGroup[], selected: MenuOption
   });
 }
 
+export function resolveOrderOptions(
+  item: MenuItem,
+  ordered: OrderItemOptionResponse[],
+): (MenuOption | undefined)[] {
+  const candidates = item.optionGroups.flatMap((group) =>
+    group.options.map((option) => ({ group, option })),
+  );
+  return ordered.map(
+    (picked) =>
+      candidates.find(({ group, option }) =>
+        picked.optionItemId != null
+          ? option.optionItemId === picked.optionItemId
+          : option.name.th === picked.name && group.name.th === picked.groupName,
+      )?.option,
+  );
+}
+
+export function isDefaultOnGroup(group: MenuOptionGroup): boolean {
+  return group.defaultSelected && group.options.length > 0;
+}
+
 export function defaultSelection(groups: MenuOptionGroup[]): MenuOption[] {
-  return groups
-    .filter((group) => group.minSelect > 0)
-    .flatMap((group) =>
-      group.options.filter((option) => option.available).slice(0, group.minSelect),
-    );
+  return groups.flatMap((group) => {
+    const available = group.options.filter((option) => option.available);
+    if (isDefaultOnGroup(group)) {
+      return available.slice(0, group.maxSelect);
+    }
+    return group.minSelect > 0 ? available.slice(0, group.minSelect) : [];
+  });
 }
 
 export function toggleOption(

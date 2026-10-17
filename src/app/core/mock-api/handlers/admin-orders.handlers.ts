@@ -7,6 +7,7 @@ import {
   OrderStatus,
   OrderStatusUpdateRequest,
   TodayResponse,
+  CartItemRequest,
   VerifyPaymentRequest,
 } from '../../api/models/order.model';
 import {
@@ -16,6 +17,10 @@ import {
   findCustomerByPhone,
   findUser,
   priceCart,
+  completeOrder,
+  isPayLaterOpen,
+  markPayLater,
+  updateOrderItem,
   requireOrderById,
   toOrder,
   toPayment,
@@ -67,6 +72,7 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
       }
       const order = createOrder(context.state, {
         channel: 'WALK_IN',
+        payLater: !!request.payLater,
         pricing,
         customer,
         guestName: null,
@@ -98,9 +104,13 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
       const channel = queryString(context, 'channel');
       const date = queryString(context, 'date');
       const keyword = queryString(context, 'keyword').toLowerCase();
+      const queue = queryString(context, 'queue') === 'true';
       const orders = context.state.orders
         .filter(
           (order) =>
+            (!queue ||
+              order.status === 'PENDING_PAYMENT' ||
+              isPayLaterOpen(context.state, order)) &&
             (!status || order.status === status) &&
             (!channel || order.channel === channel) &&
             (!date || dateKey(new Date(order.createdAt)) === date),
@@ -113,7 +123,7 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
               .toLowerCase()
               .includes(keyword),
         )
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        .sort((a, b) => (queue ? a.queueNo - b.queueNo : b.createdAt.localeCompare(a.createdAt)));
       return paginate(orders, queryNumber(context, 'page', 0), queryNumber(context, 'size', 10));
     })
     .get('/admin/orders/board', (context) => {
@@ -134,6 +144,7 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
             note: full.note,
             createdAt: full.createdAt,
             confirmedAt: full.confirmedAt,
+            payLater: full.payLater,
           };
         });
       return board;
@@ -171,6 +182,30 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
       );
       return toOrder(context.state, order);
     })
+    .put('/admin/orders/:id/items/:itemId', (context) => {
+      requireStaff(context);
+      const order = requireOrderById(context.state, numberParam(context, 'id'));
+      updateOrderItem(
+        context.state,
+        order,
+        numberParam(context, 'itemId'),
+        bodyOf<CartItemRequest>(context),
+        context.now,
+      );
+      return toOrder(context.state, order);
+    })
+    .post('/admin/orders/:id/complete', (context) => {
+      const staff = requireStaff(context);
+      const order = requireOrderById(context.state, numberParam(context, 'id'));
+      completeOrder(context.state, order, context.now, staff.nickname);
+      return toOrder(context.state, order);
+    })
+    .post('/admin/orders/:id/pay-later', (context) => {
+      requireStaff(context);
+      const order = requireOrderById(context.state, numberParam(context, 'id'));
+      markPayLater(context.state, order, context.now);
+      return toOrder(context.state, order);
+    })
     .post('/admin/orders/:id/cancel', (context) => {
       const staff = requireStaff(context);
       const order = requireOrderById(context.state, numberParam(context, 'id'));
@@ -193,10 +228,11 @@ export function registerAdminOrderHandlers(router: MockRouter): void {
     .get('/admin/payments', (context) => {
       requireStaff(context);
       const status = queryString(context, 'status');
-      return context.state.payments
+      const payments = context.state.payments
         .filter((payment) => !status || payment.status === status)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
         .map((payment) => toPendingPaymentItem(context.state, payment));
+      return paginate(payments, queryNumber(context, 'page', 0), queryNumber(context, 'size', 20));
     })
     .get('/admin/payments/:id/slip', (context) => {
       requireStaff(context);

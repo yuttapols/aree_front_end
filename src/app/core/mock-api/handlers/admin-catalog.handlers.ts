@@ -16,7 +16,15 @@ import {
   requireAdmin,
   requireStaff,
 } from '../mock-router';
-import { MockHttpError, badRequest, nextId, notFound, paginate, required } from '../mock-utils';
+import {
+  MockHttpError,
+  badRequest,
+  generatedProductCode,
+  nextId,
+  notFound,
+  paginate,
+  required,
+} from '../mock-utils';
 
 function validateCategory(state: MockState, request: CategoryUpsertRequest, id?: number): void {
   const fields: FieldError[] = [];
@@ -33,22 +41,14 @@ function validateCategory(state: MockState, request: CategoryUpsertRequest, id?:
   }
 }
 
-function validateProduct(state: MockState, request: ProductUpsertRequest, id?: number): void {
+function validateProduct(state: MockState, request: ProductUpsertRequest): void {
   const fields: FieldError[] = [];
   required(request.name, 'name', fields);
-  required(request.code, 'code', fields);
   if (!(request.price >= 0)) {
     fields.push({ field: 'price', message: 'price >= 0' });
   }
   if (!state.categories.some((category) => category.id === request.categoryId)) {
     fields.push({ field: 'categoryId', message: 'invalid category' });
-  }
-  if (
-    state.products.some(
-      (product) => product.code.toUpperCase() === request.code?.toUpperCase() && product.id !== id,
-    )
-  ) {
-    fields.push({ field: 'code', message: 'code already used' });
   }
   if (fields.length) {
     throw badRequest('Validation failed', fields);
@@ -57,6 +57,20 @@ function validateProduct(state: MockState, request: ProductUpsertRequest, id?: n
 
 function validateOptionGroup(request: OptionGroupUpsertRequest): void {
   const fields: FieldError[] = [];
+  if (typeof request.sortOrder !== 'number') {
+    fields.push({ field: 'sortOrder', message: 'must be a number' });
+  }
+  request.items?.forEach((item, index) => {
+    if (typeof item.extraPrice !== 'number') {
+      fields.push({ field: `items[${index}].extraPrice`, message: 'must be a number' });
+    }
+    if (typeof item.available !== 'boolean') {
+      fields.push({ field: `items[${index}].available`, message: 'must be a boolean' });
+    }
+    if (typeof item.sortOrder !== 'number') {
+      fields.push({ field: `items[${index}].sortOrder`, message: 'must be a number' });
+    }
+  });
   required(request.name, 'name', fields);
   if (request.minSelect < 0 || request.maxSelect < request.minSelect || request.maxSelect < 1) {
     fields.push({ field: 'maxSelect', message: 'min/max invalid' });
@@ -77,7 +91,7 @@ function applyOptionItems(state: MockState, request: OptionGroupUpsertRequest) {
     nameEn: item.nameEn?.trim() || item.name.trim(),
     extraPrice: Number(item.extraPrice) || 0,
     available: item.available,
-    sortOrder: index + 1,
+    sortOrder: Number(item.sortOrder) || index + 1,
   }));
 }
 
@@ -135,7 +149,16 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
       if (!category) {
         throw notFound();
       }
-      category.active = false;
+      if (context.state.products.some((product) => product.categoryId === category.id)) {
+        throw new MockHttpError(
+          422,
+          'INVALID_OPERATION',
+          'หมวดนี้ยังมีสินค้า — ย้ายหรือลบสินค้าในหมวดนี้ก่อน',
+        );
+      }
+      context.state.categories = context.state.categories.filter(
+        (candidate) => candidate.id !== category.id,
+      );
       return null;
     })
     .patch('/admin/categories/sort', (context) => {
@@ -171,10 +194,11 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
       requireAdmin(context);
       const request = bodyOf<ProductUpsertRequest>(context);
       validateProduct(context.state, request);
+      const id = nextId(context.state, 'product');
       const product = {
         ...request,
-        id: nextId(context.state, 'product'),
-        code: request.code.toUpperCase(),
+        id,
+        code: generatedProductCode(request.categoryId, id),
         nameEn: request.nameEn || request.name,
         descriptionEn: request.descriptionEn || request.description,
         sortOrder: context.state.products.length + 1,
@@ -195,10 +219,9 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         throw notFound();
       }
       const request = bodyOf<ProductUpsertRequest>(context);
-      validateProduct(context.state, request, product.id);
+      validateProduct(context.state, request);
       Object.assign(product, {
         ...request,
-        code: request.code.toUpperCase(),
         nameEn: request.nameEn || request.name,
         descriptionEn: request.descriptionEn || request.description,
       });
@@ -212,7 +235,9 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
       if (!product) {
         throw notFound();
       }
-      product.active = false;
+      context.state.products = context.state.products.filter(
+        (candidate) => candidate.id !== product.id,
+      );
       return null;
     })
     .put('/admin/products/:id/option-groups', (context) => {
@@ -261,8 +286,9 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         nameEn: request.nameEn?.trim() || request.name.trim(),
         minSelect: request.minSelect,
         maxSelect: request.maxSelect,
+        defaultSelected: !!request.defaultSelected,
         active: request.active,
-        sortOrder: context.state.optionGroups.length + 1,
+        sortOrder: request.sortOrder,
         items: applyOptionItems(context.state, request),
       };
       context.state.optionGroups.push(group);
@@ -283,7 +309,9 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
         nameEn: request.nameEn?.trim() || request.name.trim(),
         minSelect: request.minSelect,
         maxSelect: request.maxSelect,
+        defaultSelected: !!request.defaultSelected,
         active: request.active,
+        sortOrder: request.sortOrder,
         items: applyOptionItems(context.state, request),
       });
       return group;
@@ -291,8 +319,11 @@ export function registerAdminCatalogHandlers(router: MockRouter): void {
     .delete('/admin/option-groups/:id', (context) => {
       requireAdmin(context);
       const id = numberParam(context, 'id');
-      if (context.state.products.some((product) => product.optionGroupIds.includes(id))) {
-        throw new MockHttpError(409, 'CONCURRENT_UPDATE', 'Option group is in use');
+      if (!context.state.optionGroups.some((group) => group.id === id)) {
+        throw notFound();
+      }
+      for (const product of context.state.products) {
+        product.optionGroupIds = product.optionGroupIds.filter((groupId) => groupId !== id);
       }
       context.state.optionGroups = context.state.optionGroups.filter((group) => group.id !== id);
       return null;

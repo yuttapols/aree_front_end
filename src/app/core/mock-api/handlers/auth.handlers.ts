@@ -6,6 +6,11 @@ import {
   ProfileUpdateRequest,
   RegisterRequest,
 } from '../../api/models/user.model';
+import {
+  hasImageSignature,
+  IMAGE_MAX_BYTES,
+  isAllowedImageType,
+} from '../../../shared/utils/image';
 import type { MockState, MockUser } from '../mock-db';
 import { findUser, nextMemberCode, toMe, toOrder, toPointTransaction } from '../mock-domain';
 import { MockRouter, bodyOf, queryNumber, requireUser } from '../mock-router';
@@ -122,16 +127,20 @@ export function createCustomer(
   return user;
 }
 
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
-export async function readUploadedImage(body: unknown, field = 'file'): Promise<string> {
+export async function readUploadedImage(
+  body: unknown,
+  field = 'file',
+  maxBytes = IMAGE_MAX_BYTES,
+): Promise<string> {
   const file = body instanceof FormData ? body.get(field) : null;
-  if (!(file instanceof Blob)) {
+  if (!(file instanceof Blob) || file.size === 0) {
     throw new MockHttpError(400, 'FILE_INVALID', 'file is required');
   }
-  if (!ALLOWED_TYPES.includes(file.type) || file.size > MAX_UPLOAD_BYTES) {
-    throw new MockHttpError(400, 'FILE_INVALID', `${file.type} ${file.size}`);
+  if (!isAllowedImageType(file.type) || !(await hasImageSignature(file))) {
+    throw new MockHttpError(415, 'UNSUPPORTED_MEDIA_TYPE', file.type);
+  }
+  if (file.size > maxBytes) {
+    throw new MockHttpError(413, 'PAYLOAD_TOO_LARGE', String(file.size));
   }
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

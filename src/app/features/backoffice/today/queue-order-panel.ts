@@ -7,9 +7,10 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { MessageService } from 'primeng/api';
-import { ButtonModule } from 'primeng/button';
+import { TooltipModule } from 'primeng/tooltip';
 import { finalize, forkJoin, of, switchMap } from 'rxjs';
 
 import { OrderResponse } from '../../../core/api/models/order.model';
@@ -17,21 +18,46 @@ import { OrderApi } from '../../../core/api/services/order.api';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { TranslationKey } from '../../../core/i18n/translations';
 import { Panel } from '../../../shared/components/panel/panel';
+import { PayLaterTag } from '../../../shared/components/pay-later-tag/pay-later-tag';
+import { outstandingAmount } from '../../../shared/utils/price';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
-import { orderSummaryLines } from '../../../shared/utils/order-lines';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { OrderLinesService } from '../../../shared/services/order-lines.service';
+import { formatMoney } from '../../../shared/utils/format';
 import { CancelOrderDialog } from './cancel-order-dialog';
+import { CashPaymentDialog } from './cash-payment-dialog';
+import { EditOrderItemsDialog } from './edit-order-items-dialog';
 import { SettleConfirmDialog } from './settle-confirm-dialog';
+import { LineExtras } from '../../../shared/components/line-extras/line-extras';
 
-type CounterMethod = 'CASH' | 'TRANSFER';
+type CounterMethod = 'CASH' | 'TRANSFER' | 'PAY_LATER';
 
 const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[] = [
   { code: 'CASH', labelKey: 'bo.today.cash', icon: 'pi pi-wallet' },
   { code: 'TRANSFER', labelKey: 'bo.today.transfer', icon: 'pi pi-building-columns' },
 ];
 
+const PAY_LATER_METHOD = {
+  code: 'PAY_LATER' as CounterMethod,
+  labelKey: 'pos.payLater' as TranslationKey,
+  icon: 'pi pi-clock',
+};
+
+const EDITABLE_STATUSES = ['PENDING_PAYMENT', 'CONFIRMED'];
+
 @Component({
   selector: 'app-queue-order-panel',
-  imports: [ButtonModule, Panel, MoneyPipe, SettleConfirmDialog, CancelOrderDialog],
+  imports: [
+    TooltipModule,
+    LineExtras,
+    Panel,
+    MoneyPipe,
+    SettleConfirmDialog,
+    CancelOrderDialog,
+    EditOrderItemsDialog,
+    CashPaymentDialog,
+    PayLaterTag,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -39,12 +65,29 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
       [heading]="i18n.t('bo.today.items')"
       [subtitle]="i18n.t('bo.today.itemsOf', { n: order().queueNo, count: itemCount() })"
     >
-      <span
-        panelActions
-        class="bg-accent-soft text-accent font-display rounded-full px-3 py-1 text-sm font-bold"
-      >
-        #{{ order().orderNo }}
-      </span>
+      <div panelActions class="flex flex-wrap items-center justify-end gap-2">
+        @if (order().payLater) {
+          <app-pay-later-tag [amount]="outstanding(order())" />
+        }
+        <span
+          class="bg-accent-soft text-accent font-display rounded-full px-3 py-1 text-sm font-bold"
+        >
+          #{{ order().orderNo }}
+        </span>
+        <span
+          [pTooltip]="editBlockReason() ? i18n.t(editBlockReason()!) : ''"
+          tooltipPosition="bottom"
+        >
+          <button
+            type="button"
+            class="border-brand text-brand hover:bg-brand-soft inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-bold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            [disabled]="busy() || !!editBlockReason()"
+            (click)="editingItems.set(true)"
+          >
+            <i class="pi pi-pencil"></i>{{ i18n.t('bo.today.editItems') }}
+          </button>
+        </span>
+      </div>
 
       <div class="flex flex-col">
         <ul class="divide-line -mx-1 divide-y overflow-y-auto px-1 lg:max-h-[22rem]">
@@ -57,8 +100,8 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
               </span>
               <div class="min-w-0 flex-1">
                 <p class="text-ink font-bold">{{ line.name }}</p>
-                @if (line.extras) {
-                  <p class="text-ink-muted mt-0.5 text-sm">{{ line.extras }}</p>
+                @if (line.extras || line.omitted.length) {
+                  <p class="text-ink-muted mt-0.5 text-sm"><app-line-extras [line]="line" /></p>
                 }
                 @if (line.note) {
                   <p class="text-accent mt-0.5 text-sm font-semibold">
@@ -89,15 +132,21 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
         <div class="bg-canvas mt-4 rounded-2xl p-4">
           <p class="text-ink mb-3 font-bold">{{ i18n.t('bo.today.paidWith') }}</p>
           <div class="grid grid-cols-2 gap-3" role="radiogroup">
-            @for (method of methods; track method.code) {
+            @for (method of methods(); track method.code) {
+              @let danger = method.code === 'PAY_LATER';
               <button
                 type="button"
                 role="radio"
                 class="flex items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition"
                 [class]="
-                  selectedMethod() === method.code
-                    ? 'border-brand bg-brand-soft text-brand'
-                    : 'border-line bg-card text-ink hover:border-brand/40'
+                  (danger ? 'col-span-2 ' : '') +
+                  (selectedMethod() === method.code
+                    ? danger
+                      ? 'border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+                      : 'border-brand bg-brand-soft text-brand'
+                    : danger
+                      ? 'border-line bg-card text-ink hover:border-red-300'
+                      : 'border-line bg-card text-ink hover:border-brand/40')
                 "
                 [attr.aria-checked]="selectedMethod() === method.code"
                 (click)="selectedMethod.set(method.code)"
@@ -106,7 +155,9 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
                   class="grid h-6 w-6 shrink-0 place-items-center rounded-md border-2 transition"
                   [class]="
                     selectedMethod() === method.code
-                      ? 'border-brand bg-brand text-on-brand'
+                      ? danger
+                        ? 'border-red-500 bg-red-500 text-white'
+                        : 'border-brand bg-brand text-on-brand'
                       : 'border-line'
                   "
                 >
@@ -119,32 +170,61 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
               </button>
             }
           </div>
-          <p-button
-            styleClass="mt-4"
-            [label]="i18n.t('bo.today.settle')"
-            icon="pi pi-check"
-            severity="success"
-            [rounded]="true"
-            size="large"
-            [fluid]="true"
-            [disabled]="!selectedMethod()"
-            [loading]="busy()"
-            (onClick)="confirming.set(true)"
-          />
-          <p-button
-            styleClass="mt-2"
-            [label]="i18n.t('bo.today.cancel')"
-            icon="pi pi-times"
-            severity="danger"
-            [text]="true"
-            [rounded]="true"
-            [fluid]="true"
-            [disabled]="busy()"
-            (onClick)="cancelling.set(true)"
-          />
+          <div class="mt-4 flex gap-3">
+            <button
+              type="button"
+              class="flex w-20 shrink-0 items-center justify-center rounded-2xl border-2 border-red-500 bg-card text-red-600 transition hover:bg-red-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
+              [disabled]="busy()"
+              (click)="cancelling.set(true)"
+              [attr.aria-label]="i18n.t('bo.today.cancel')"
+              [title]="i18n.t('bo.today.cancel')"
+            >
+              <i class="pi pi-trash text-2xl"></i>
+            </button>
+            @if (selectedMethod() === 'PAY_LATER') {
+              <button
+                type="button"
+                class="flex min-h-24 flex-1 flex-col items-center justify-center gap-1.5 rounded-2xl bg-red-500 text-2xl font-bold text-white shadow-lg shadow-red-500/30 transition hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                [disabled]="busy() || !!order().payLater"
+                (click)="payLater()"
+              >
+                <i
+                  class="pi text-3xl"
+                  [class.pi-send]="!busy()"
+                  [class.pi-spinner]="busy()"
+                  [class.pi-spin]="busy()"
+                ></i>
+                {{ i18n.t('pos.addPayLater') }}
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="flex min-h-24 flex-1 flex-col items-center justify-center gap-1.5 rounded-2xl bg-green-500 text-2xl font-bold text-white shadow-lg shadow-green-500/30 transition hover:bg-green-600 active:scale-95 disabled:cursor-not-allowed disabled:bg-green-500/40 disabled:shadow-none"
+                [disabled]="!selectedMethod() || busy()"
+                (click)="openSettle()"
+              >
+                <i
+                  class="pi text-3xl"
+                  [class.pi-check-circle]="!busy()"
+                  [class.pi-spinner]="busy()"
+                  [class.pi-spin]="busy()"
+                ></i>
+                {{ i18n.t('bo.today.settle') }}
+              </button>
+            }
+          </div>
         </div>
       </div>
     </app-panel>
+
+    <app-cash-payment-dialog
+      [(visible)]="payingCash"
+      [amount]="outstanding(order())"
+      [queueNo]="order().queueNo"
+      [itemCount]="itemCount()"
+      [busy]="busy()"
+      (confirmed)="settle($event)"
+    />
 
     @if (method(); as chosen) {
       <app-settle-confirm-dialog
@@ -153,12 +233,17 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
         [customerName]="displayName()"
         [methodLabel]="i18n.t(chosen.labelKey)"
         [methodIcon]="chosen.icon"
-        [amount]="order().totalAmount"
+        [amount]="outstanding(order())"
         [busy]="busy()"
-        (confirmed)="settle()"
+        (confirmed)="settle(null)"
       />
     }
 
+    <app-edit-order-items-dialog
+      [(visible)]="editingItems"
+      [order]="order()"
+      (updated)="itemsUpdated.emit($event)"
+    />
     <app-cancel-order-dialog
       [(visible)]="cancelling"
       [queueNo]="order().queueNo"
@@ -171,41 +256,110 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
 })
 export class QueueOrderPanel {
   protected readonly i18n = inject(I18nService);
+  protected readonly outstanding = outstandingAmount;
+  private readonly orderLines = inject(OrderLinesService);
+  private readonly confirm = inject(ConfirmService);
   private readonly api = inject(OrderApi);
   private readonly messages = inject(MessageService);
 
   readonly order = input.required<OrderResponse>();
   readonly finished = output<void>();
+  readonly itemsUpdated = output<OrderResponse>();
 
-  protected readonly methods = METHODS;
+  protected readonly methods = computed(() =>
+    this.order().status === 'PENDING_PAYMENT' || this.order().payLater
+      ? [...METHODS, PAY_LATER_METHOD]
+      : METHODS,
+  );
+  protected readonly editBlockReason = computed<TranslationKey | null>(() => {
+    const order = this.order();
+    const items = order.items ?? [];
+    if (order.payLater) {
+      return 'bo.editItems.blockedPayLater';
+    }
+    if (order.channel !== 'WALK_IN') {
+      return 'bo.editItems.blockedOnline';
+    }
+    if (!EDITABLE_STATUSES.includes(order.status)) {
+      return 'bo.editItems.blockedStatus';
+    }
+    if (order.pointsRedeemed > 0) {
+      return 'bo.editItems.blockedPoints';
+    }
+    if (!items.length || items.some((item) => item.id == null)) {
+      return 'bo.editItems.blockedLoading';
+    }
+    return null;
+  });
   protected readonly selectedMethod = signal<CounterMethod | null>(null);
   protected readonly busy = signal(false);
   protected readonly confirming = signal(false);
+  protected readonly payingCash = signal(false);
   protected readonly cancelling = signal(false);
+  protected readonly editingItems = signal(false);
   protected readonly method = computed(
-    () => METHODS.find((option) => option.code === this.selectedMethod()) ?? null,
+    () =>
+      METHODS.find(
+        (option) => option.code === this.selectedMethod() && option.code !== 'PAY_LATER',
+      ) ?? null,
   );
 
-  protected readonly lines = computed(() => orderSummaryLines(this.order().items, this.i18n));
+  protected readonly lines = computed(() => this.orderLines.summarize(this.order().items ?? []));
   protected readonly itemCount = computed(() =>
-    this.order().items.reduce((total, item) => total + item.quantity, 0),
+    (this.order().items ?? []).reduce((total, item) => total + item.quantity, 0),
   );
   protected readonly displayName = computed(
     () =>
-      this.order().customer?.nickname ?? this.order().guestName ?? this.i18n.t('bo.walkInGuest'),
+      this.order().customer?.nickname ??
+      this.order().customerName ??
+      this.order().guestName ??
+      this.i18n.t('bo.walkInGuest'),
   );
   private readonly orderId = computed(() => this.order().id);
 
   constructor() {
     effect(() => {
       this.orderId();
-      this.selectedMethod.set(null);
+      this.selectedMethod.set(untracked(() => this.order().payLater) ? 'PAY_LATER' : null);
       this.confirming.set(false);
       this.cancelling.set(false);
     });
   }
 
-  protected settle(): void {
+  protected async payLater(): Promise<void> {
+    const order = this.order();
+    const confirmed = await this.confirm.ask({
+      header: this.i18n.t('bo.today.payLaterTitle', { n: order.queueNo }),
+      message: this.i18n.t('bo.today.payLaterMessage', { amount: formatMoney(order.totalAmount) }),
+      acceptLabel: this.i18n.t('pos.addPayLater'),
+      danger: true,
+      icon: 'pi pi-clock',
+    });
+    if (!confirmed) {
+      return;
+    }
+    this.busy.set(true);
+    this.api
+      .markPayLater(order.id)
+      .pipe(finalize(() => this.busy.set(false)))
+      .subscribe(() => {
+        this.messages.add({
+          severity: 'warn',
+          summary: this.i18n.t('bo.today.payLaterDone', { n: order.queueNo }),
+        });
+        this.finished.emit();
+      });
+  }
+
+  protected openSettle(): void {
+    if (this.selectedMethod() === 'CASH') {
+      this.payingCash.set(true);
+    } else {
+      this.confirming.set(true);
+    }
+  }
+
+  protected settle(cashReceived: number | null): void {
     const method = this.method();
     if (!method) {
       return;
@@ -230,16 +384,17 @@ export class QueueOrderPanel {
           fresh.remainingAmount > 0
             ? this.api.addPayment(order.id, {
                 methodCode: method.code,
-                cashReceived: null,
+                cashReceived,
                 referenceNo: null,
               })
             : of(fresh),
         ),
-        switchMap(() => this.api.updateStatus(order.id, 'COMPLETED')),
+        switchMap(() => this.api.complete(order.id)),
         finalize(() => this.busy.set(false)),
       )
       .subscribe(() => {
         this.confirming.set(false);
+        this.payingCash.set(false);
         this.messages.add({
           severity: 'success',
           summary: this.i18n.t('bo.today.completed'),

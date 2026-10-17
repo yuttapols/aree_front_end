@@ -73,6 +73,7 @@ const ADMIN_ITEMS: SideNavItem[] = [
     icon: 'pi pi-percentage',
     link: '/backoffice/promotions',
   },
+  { id: 'banners', labelKey: 'bo.nav.banners', icon: 'pi pi-images', link: '/backoffice/banners' },
   { id: 'staff', labelKey: 'bo.nav.staff', icon: 'pi pi-id-card', link: '/backoffice/staff' },
   { id: 'settings', labelKey: 'bo.nav.settings', icon: 'pi pi-cog', link: '/backoffice/settings' },
 ];
@@ -235,8 +236,8 @@ export class BackofficeLayout {
   }
 
   private loadPending(): void {
-    this.orderApi.payments('PENDING', true).subscribe({
-      next: (payments) => this.pendingPayments.set(payments.length),
+    this.orderApi.payments('PENDING', 0, 1, true).subscribe({
+      next: (page) => this.pendingPayments.set(page.totalItems),
       error: () => this.pendingPayments.set(0),
     });
   }

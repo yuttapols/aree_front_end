@@ -250,3 +250,146 @@
 .menu-danger .p-menu-item-content:hover {
   background: rgb(239 68 68 / 0.1) !important;
 }
+
+.p-dialog-content,
+.p-drawer-content {
+  overflow-x: hidden;
+}
+
+.p-dialog-mask.p-overlay-mask {
+  backdrop-filter: blur(6px);
+  background: rgb(20 8 36 / 0.45);
+}
+
+.p-dialog {
+  border: 0;
+  border-radius: 1.75rem;
+  overflow: hidden;
+  background: var(--app-card);
+  box-shadow:
+    0 30px 60px -20px rgb(44 15 82 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+.p-dialog-header {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem 1.5rem;
+  color: #fff;
+  background-image: linear-gradient(135deg, #2c0f52 0%, #4a1d80 50%, #6e35b8 100%);
+}
+
+.p-dialog-header::before {
+  content: '';
+  position: absolute;
+  top: -3.5rem;
+  right: -2.5rem;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.1);
+  pointer-events: none;
+}
+
+.p-dialog-header::after {
+  content: '';
+  position: absolute;
+  bottom: -3rem;
+  left: 35%;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 9999px;
+  background: rgb(249 115 22 / 0.3);
+  filter: blur(28px);
+  pointer-events: none;
+}
+
+.p-dialog-title {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.p-dialog-header-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.p-dialog-header .p-button {
+  color: #fff;
+  background: rgb(255 255 255 / 0.15);
+}
+
+.p-dialog-header .p-button:not(:disabled):hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.28);
+}
+
+.p-dialog-header + .p-dialog-content {
+  padding-top: 1.5rem;
+}
+
+.p-dialog-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-line) transparent;
+}
+
+.p-dialog-footer {
+  padding: 0.875rem 1.5rem;
+  border-top: 1px solid var(--app-line);
+  background: var(--app-card-muted);
+}
+
+.p-confirmdialog .p-confirmdialog-icon {
+  color: var(--app-accent);
+  font-size: 1.75rem;
+}
+
+.p-dialog-header + .p-dialog-content {
+  padding: 1.5rem 1.5rem 1.5rem;
+}
+
+.dialog-actions {
+  position: sticky;
+  bottom: -1.5rem;
+  z-index: 2;
+  margin: 1rem -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--app-line);
+  background: var(--app-card-muted);
+  box-shadow: 0 -14px 24px -18px rgb(44 15 82 / 0.35);
+}
+
+.p-dialog-footer {
+  gap: 0.5rem;
+  box-shadow: 0 -14px 24px -18px rgb(44 15 82 / 0.35);
+}
+
+.dialog-actions .p-button,
+.p-dialog-footer .p-button {
+  min-height: 2.75rem;
+  padding-inline: 1.5rem;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+.dialog-actions .p-button-text:not(.p-button-danger),
+.p-dialog-footer .p-button-text:not(.p-button-danger) {
+  border: 1px solid var(--app-line);
+  background: var(--app-card);
+  color: var(--app-ink);
+}
+
+.dialog-actions .p-button-text:not(:disabled):hover,
+.p-dialog-footer .p-button-text:not(:disabled):hover {
+  border-color: var(--app-ink-muted);
+  background: var(--app-card);
+}
+
+.dialog-actions .p-button:not(.p-button-text):not(.p-button-outlined),
+.p-dialog-footer .p-button:not(.p-button-text):not(.p-button-outlined) {
+  box-shadow: 0 10px 20px -10px rgb(74 29 128 / 0.6);
+}

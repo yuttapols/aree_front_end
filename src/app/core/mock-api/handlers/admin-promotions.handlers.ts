@@ -2,8 +2,8 @@ import { FieldError } from '../../api/models/common.model';
 import { PromotionUpsertRequest } from '../../api/models/loyalty.model';
 import type { MockState } from '../mock-db';
 import { findUser } from '../mock-domain';
-import { MockRouter, bodyOf, numberParam, requireAdmin } from '../mock-router';
-import { badRequest, nextId, notFound, required } from '../mock-utils';
+import { MockRouter, bodyOf, numberParam, queryNumber, requireAdmin } from '../mock-router';
+import { badRequest, nextId, notFound, paginate, required } from '../mock-utils';
 
 function validatePromotion(
   state: MockState,
@@ -60,7 +60,11 @@ export function registerAdminPromotionHandlers(router: MockRouter): void {
   router
     .get('/admin/promotions', (context) => {
       requireAdmin(context);
-      return [...context.state.promotions].sort((a, b) => b.id - a.id);
+      return paginate(
+        [...context.state.promotions].sort((a, b) => b.id - a.id),
+        queryNumber(context, 'page', 0),
+        queryNumber(context, 'size', 20),
+      );
     })
     .get('/admin/promotions/:id', (context) => {
       requireAdmin(context);
@@ -101,13 +105,15 @@ export function registerAdminPromotionHandlers(router: MockRouter): void {
       if (!promotion) {
         throw notFound();
       }
-      promotion.active = false;
+      context.state.promotions = context.state.promotions.filter(
+        (candidate) => candidate.id !== promotion.id,
+      );
       return null;
     })
     .get('/admin/promotions/:id/usages', (context) => {
       requireAdmin(context);
       const id = numberParam(context, 'id');
-      return context.state.promotionUsages
+      const usages = context.state.promotionUsages
         .filter((usage) => usage.promotionId === id)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .map((usage) => {
@@ -121,5 +127,6 @@ export function registerAdminPromotionHandlers(router: MockRouter): void {
             createdAt: usage.createdAt,
           };
         });
+      return paginate(usages, queryNumber(context, 'page', 0), queryNumber(context, 'size', 20));
     });
 }

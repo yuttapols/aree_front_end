@@ -4,6 +4,7 @@ import { MessageService } from 'primeng/api';
 
 import { PromotionResponse } from '../../../core/api/models/loyalty.model';
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { BannerBackdrop } from '../banner-backdrop/banner-backdrop';
 import { ThaiDatePipe } from '../../pipes/thai-date.pipe';
 import { promotionConditions, promotionHeadline } from '../../utils/promotion';
 
@@ -11,7 +12,7 @@ const COPIED_RESET_MS = 1500;
 
 @Component({
   selector: 'app-promo-card',
-  imports: [RouterLink, ThaiDatePipe],
+  imports: [RouterLink, BannerBackdrop, ThaiDatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -22,13 +23,7 @@ const COPIED_RESET_MS = 1500;
         [routerLink]="['/promotions', promotion().id]"
         class="bg-royal relative block overflow-hidden px-5 py-6 text-white"
       >
-        @if (promotion().bannerUrl) {
-          <img
-            [src]="promotion().bannerUrl"
-            alt=""
-            class="absolute inset-0 h-full w-full object-cover opacity-40"
-          />
-        }
+        <app-banner-backdrop [url]="promotion().bannerUrl" [blur]="true" />
         <i
           class="pi pi-tag pointer-events-none absolute -right-4 -bottom-6 text-[7rem] text-white/10"
         ></i>

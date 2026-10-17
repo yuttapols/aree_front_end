@@ -23,7 +23,7 @@ import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Panel } from '../../shared/components/panel/panel';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
-import { orderSummaryLines } from '../../shared/utils/order-lines';
+import { OrderLinesService } from '../../shared/services/order-lines.service';
 import { CartActions } from '../cart/cart-actions.service';
 
 @Component({
@@ -105,6 +105,7 @@ import { CartActions } from '../cart/cart-actions.service';
 })
 export class ProfileOrderDetail {
   protected readonly i18n = inject(I18nService);
+  private readonly orderLines = inject(OrderLinesService);
   protected readonly catalog = inject(CatalogStore);
   private readonly api = inject(OrderApi);
   private readonly cartActions = inject(CartActions);
@@ -114,9 +115,7 @@ export class ProfileOrderDetail {
   readonly orderNo = input.required<string>();
 
   protected readonly order = signal<OrderResponse | null>(null);
-  protected readonly lines = computed(() =>
-    orderSummaryLines(this.order()?.items ?? [], this.i18n),
-  );
+  protected readonly lines = computed(() => this.orderLines.summarize(this.order()?.items ?? []));
   protected readonly crumbs = computed<Crumb[]>(() => [
     { labelKey: 'profile.nav.overview', link: '/profile' },
     { labelKey: 'profile.nav.orders', link: '/profile/orders' },

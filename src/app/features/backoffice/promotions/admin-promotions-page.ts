@@ -1,7 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { finalize } from 'rxjs';
 
 import { PromotionResponse, PromotionUsageResponse } from '../../../core/api/models/loyalty.model';
@@ -20,11 +23,16 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 import { formatDate } from '../../../shared/utils/format';
 import { promotionHeadline, promotionState } from '../../../shared/utils/promotion';
 
+const PROMOTION_PAGE_SIZE = 20;
+const USAGE_PAGE_SIZE = 100;
+
 @Component({
   selector: 'app-admin-promotions-page',
   imports: [
     RouterLink,
+    FormsModule,
     ButtonModule,
+    ToggleSwitchModule,
     DialogModule,
     DataTable,
     EmptyState,
@@ -41,7 +49,7 @@ import { promotionHeadline, promotionState } from '../../../shared/utils/promoti
     <div class="px-4 py-6 md:px-8">
       <app-panel
         [heading]="i18n.t('bo.nav.promotions')"
-        [subtitle]="i18n.t('bo.promotions.total', { n: promotions().length })"
+        [subtitle]="i18n.t('bo.promotions.total', { n: total() })"
       >
         <a
           panelActions
@@ -55,8 +63,10 @@ import { promotionHeadline, promotionState } from '../../../shared/utils/promoti
           [rows]="promotions()"
           [columns]="columns()"
           [loading]="loading()"
-          [lazy]="false"
-          [total]="promotions().length"
+          [page]="page()"
+          [pageSize]="pageSize"
+          [total]="total()"
+          (pageChange)="changePage($event.page)"
           [clickable]="true"
           [emptyTitle]="i18n.t('promo.empty')"
           minWidth="60rem"
@@ -90,16 +100,21 @@ import { promotionHeadline, promotionState } from '../../../shared/utils/promoti
                     [ariaLabel]="i18n.t('bo.promotions.usages')"
                     (onClick)="showUsages(row)"
                   />
-                  @if (row.isActive) {
-                    <p-button
-                      icon="pi pi-power-off"
-                      severity="danger"
-                      [text]="true"
-                      [rounded]="true"
-                      [ariaLabel]="i18n.t('bo.promotions.deactivate')"
-                      (onClick)="deactivate(row)"
-                    />
-                  }
+                  <p-toggleswitch
+                    class="mx-2 self-center"
+                    [ngModel]="row.active"
+                    [disabled]="toggling() === row.id"
+                    [ariaLabel]="i18n.t('status.active.true')"
+                    (ngModelChange)="setActive(row, $event)"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    [text]="true"
+                    [rounded]="true"
+                    [ariaLabel]="i18n.t('common.delete')"
+                    (onClick)="remove(row)"
+                  />
                 </span>
               }
             }
@@ -152,6 +167,11 @@ export class AdminPromotionsPage {
     { labelKey: 'bo.nav.promotions' },
   ];
   protected readonly promotions = signal<PromotionResponse[]>([]);
+  protected readonly toggling = signal<number | null>(null);
+  private readonly messages = inject(MessageService);
+  protected readonly page = signal(0);
+  protected readonly total = signal(0);
+  protected readonly pageSize = PROMOTION_PAGE_SIZE;
   protected readonly loading = signal(false);
   protected readonly usagePromotion = signal<PromotionResponse | null>(null);
   protected readonly usages = signal<PromotionUsageResponse[]>([]);
@@ -199,28 +219,63 @@ export class AdminPromotionsPage {
   protected showUsages(promotion: PromotionResponse): void {
     this.usages.set([]);
     this.usagePromotion.set(promotion);
-    this.api.usages(promotion.id).subscribe((usages) => this.usages.set(usages));
+    this.api
+      .usages(promotion.id, 0, USAGE_PAGE_SIZE)
+      .subscribe((page) => this.usages.set(page.items));
   }
 
-  protected async deactivate(promotion: PromotionResponse): Promise<void> {
+  protected setActive(promotion: PromotionResponse, active: boolean): void {
+    const { id, usedCount, ...request } = promotion;
+    this.toggling.set(id);
+    this.api
+      .update(id, { ...request, active })
+      .pipe(finalize(() => this.toggling.set(null)))
+      .subscribe({
+        next: (updated) => {
+          this.promotions.update((rows) => rows.map((row) => (row.id === id ? updated : row)));
+          this.messages.add({
+            severity: 'success',
+            summary: this.i18n.t(active ? 'bo.promotions.activated' : 'bo.promotions.deactivated', {
+              name: this.i18n.name(promotion),
+            }),
+          });
+          this.catalog.refresh();
+        },
+        error: () => this.promotions.update((rows) => [...rows]),
+      });
+  }
+
+  protected async remove(promotion: PromotionResponse): Promise<void> {
     const ok = await this.confirm.ask({
-      message: this.i18n.t('bo.promotions.confirmDeactivate', { name: this.i18n.name(promotion) }),
+      message: this.i18n.t('bo.promotions.confirmDelete', { name: this.i18n.name(promotion) }),
       danger: true,
-      acceptLabel: this.i18n.t('bo.promotions.deactivate'),
+      acceptLabel: this.i18n.t('common.delete'),
     });
     if (ok) {
       this.api.remove(promotion.id).subscribe(() => {
+        this.messages.add({
+          severity: 'success',
+          summary: this.i18n.t('catalog.deleted', { name: this.i18n.name(promotion) }),
+        });
         this.load();
         this.catalog.refresh();
       });
     }
   }
 
+  protected changePage(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
     this.api
-      .list()
+      .list(this.page(), this.pageSize)
       .pipe(finalize(() => this.loading.set(false)))
-      .subscribe((promotions) => this.promotions.set(promotions));
+      .subscribe((response) => {
+        this.promotions.set(response.items);
+        this.total.set(response.totalItems);
+      });
   }
 }

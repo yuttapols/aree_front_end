@@ -4,6 +4,7 @@ import { ButtonModule } from 'primeng/button';
 
 import { CartService } from '../../core/cart/cart.service';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { ConfirmService } from '../../shared/services/confirm.service';
 import { OrderLine } from '../../shared/components/order-line/order-line';
 import { QtyStepper } from '../../shared/components/qty-stepper/qty-stepper';
 import { SummaryRow } from '../../shared/components/summary-row/summary-row';
@@ -18,13 +19,15 @@ import { formatBaht } from '../../shared/utils/price';
     <div class="flex items-center justify-between">
       <h3 class="text-ink text-lg font-bold">{{ i18n.t('cart.title') }}</h3>
       @if (!cart.isEmpty()) {
-        <button
-          type="button"
-          class="text-ink-muted hover:text-accent text-xs transition"
-          (click)="cart.clear()"
-        >
-          {{ i18n.t('cart.clear') }}
-        </button>
+        <p-button
+          [label]="i18n.t('cart.clear')"
+          icon="pi pi-trash"
+          severity="danger"
+          size="small"
+          [text]="true"
+          [rounded]="true"
+          (onClick)="clearCart()"
+        />
       }
     </div>
 
@@ -40,12 +43,23 @@ import { formatBaht } from '../../shared/utils/price';
       <div class="divide-line mt-2 flex-1 divide-y overflow-y-auto">
         @for (line of cart.lines(); track line.key) {
           <app-order-line [line]="line">
-            <app-qty-stepper
-              [qty]="line.qty"
-              size="sm"
-              (increment)="cart.increment(line.key)"
-              (decrement)="cart.decrement(line.key)"
-            />
+            <div class="flex items-center justify-between gap-2">
+              <app-qty-stepper
+                [qty]="line.qty"
+                size="sm"
+                (increment)="cart.increment(line.key)"
+                (decrement)="cart.decrement(line.key)"
+              />
+              <p-button
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                [text]="true"
+                [rounded]="true"
+                [ariaLabel]="i18n.t('cart.removeItem', { name: i18n.text(line.item.name) })"
+                (onClick)="cart.remove(line.key)"
+              />
+            </div>
           </app-order-line>
         }
       </div>
@@ -75,8 +89,20 @@ export class CartPanel {
   protected readonly i18n = inject(I18nService);
   protected readonly cart = inject(CartService);
   private readonly router = inject(Router);
+  private readonly confirm = inject(ConfirmService);
 
   protected readonly formatBaht = formatBaht;
+
+  protected async clearCart(): Promise<void> {
+    const confirmed = await this.confirm.ask({
+      message: this.i18n.t('cart.clearConfirm'),
+      acceptLabel: this.i18n.t('cart.clear'),
+      danger: true,
+    });
+    if (confirmed) {
+      this.cart.clear();
+    }
+  }
 
   protected checkout(): void {
     this.cart.drawerOpen.set(false);

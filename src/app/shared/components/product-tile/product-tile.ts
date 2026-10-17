@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
 
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { MenuItem } from '../../../core/models/menu.model';
+import { FileUrlPipe } from '../../pipes/file-url.pipe';
 import { FoodPlate } from '../food-plate/food-plate';
 import { Price } from '../price/price';
 
 @Component({
   selector: 'app-product-tile',
-  imports: [FoodPlate, Price],
+  imports: [FileUrlPipe, FoodPlate, Price],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -29,7 +30,11 @@ import { Price } from '../price/price';
       }
       <span class="bg-card-muted block aspect-square overflow-hidden rounded-xl p-2">
         @if (item().imageUrl) {
-          <img [src]="item().imageUrl" alt="" class="h-full w-full rounded-lg object-cover" />
+          <img
+            [src]="item().imageUrl | fileUrl"
+            alt=""
+            class="h-full w-full rounded-lg object-cover"
+          />
         } @else {
           <app-food-plate class="h-full w-full" [palette]="item().palette" />
         }

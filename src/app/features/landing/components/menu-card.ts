@@ -8,13 +8,12 @@ import { Chip, ChipTone } from '../../../shared/components/chip/chip';
 import { ProductImage } from '../../../shared/components/product-image/product-image';
 import { Price } from '../../../shared/components/price/price';
 import { QtyStepper } from '../../../shared/components/qty-stepper/qty-stepper';
-import { Rating } from '../../../shared/components/rating/rating';
 import { discountPercent } from '../../../shared/utils/price';
 import { CartActions } from '../../cart/cart-actions.service';
 
 @Component({
   selector: 'app-menu-card',
-  imports: [Chip, ProductImage, Price, QtyStepper, Rating],
+  imports: [Chip, ProductImage, Price, QtyStepper],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -68,7 +67,6 @@ import { CartActions } from '../../cart/cart-actions.service';
       <p class="text-ink-muted mt-0.5 line-clamp-2 min-h-8 text-xs">
         {{ soldOut() ? i18n.t('menu.soldOutToday') : i18n.text(item().description) }}
       </p>
-      <app-rating class="mt-2" [value]="item().rating" [count]="item().reviews" />
 
       <div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
         <app-price

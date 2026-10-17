@@ -1,72 +1,103 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
-import { fallbackPalette } from '../../../core/catalog/catalog.mapper';
-import { CatalogStore } from '../../../core/catalog/catalog.store';
+import { BannerStore } from '../../../core/banner/banner.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { BannerBackdrop } from '../../../shared/components/banner-backdrop/banner-backdrop';
 import { Chip } from '../../../shared/components/chip/chip';
 import { CtaLink } from '../../../shared/components/cta-link/cta-link';
-import { FoodPlate } from '../../../shared/components/food-plate/food-plate';
+import {
+  bannerLink,
+  DEFAULT_BANNER_IMAGE,
+  DEFAULT_BANNER_IMAGE_MOBILE,
+} from '../../../shared/utils/banner';
 
 @Component({
   selector: 'app-offer-banner',
-  imports: [Chip, CtaLink, FoodPlate],
+  imports: [BannerBackdrop, Chip, CtaLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <section
-      id="offers"
-      class="from-brand-soft to-accent-soft border-line relative grid grid-cols-[1.3fr_1fr] items-center gap-2 overflow-hidden rounded-[2rem] border bg-linear-to-r px-5 py-6 sm:px-8 md:px-12 md:py-10"
-    >
-      <div class="relative z-10">
-        <app-chip tone="brand">{{ i18n.t('offer.eyebrow') }}</app-chip>
-        <h2
-          class="font-display text-ink mt-3 text-2xl leading-tight font-extrabold uppercase sm:text-3xl md:text-5xl"
-        >
-          {{ i18n.t('offer.title') }}
-        </h2>
-        <p class="text-ink-muted mt-1 text-xs sm:text-sm md:text-base">
-          {{ i18n.t('offer.subtitle') }}
-        </p>
-        <app-cta-link
-          class="mt-4 md:mt-6"
-          tone="brand"
-          [label]="i18n.t('offer.cta')"
-          link="/promotions"
+    @if (banner(); as current) {
+      <section
+        id="offers"
+        class="bg-royal relative overflow-hidden rounded-[2rem] px-5 py-8 text-white sm:px-8 md:aspect-[12/4] md:px-12 md:py-12"
+      >
+        <app-banner-backdrop
+          variant="vivid"
+          [url]="current.imageUrl"
+          [mobileUrl]="current.imageUrlMobile"
         />
-      </div>
-
-      <div class="relative aspect-[5/4] w-full">
-        <app-food-plate
-          class="absolute bottom-0 left-0 w-[62%] drop-shadow-xl"
-          [palette]="combo()[0]"
-        />
-        <app-food-plate
-          class="absolute top-[6%] left-[38%] w-[46%] drop-shadow-xl"
-          [palette]="combo()[1]"
-        />
-        <div
-          class="bg-brand text-on-brand animate-float absolute top-0 right-0 grid h-16 w-16 place-items-center rounded-full text-center shadow-xl sm:h-20 sm:w-20 md:h-28 md:w-28"
-        >
-          <span class="leading-none">
-            <span class="font-display block text-xl font-extrabold sm:text-2xl md:text-4xl"
-              >25%</span
+        <div class="relative z-10 max-w-[60%]">
+          <app-chip tone="accent">{{ i18n.t('offer.eyebrow') }}</app-chip>
+          @if (current.title) {
+            <h2
+              class="font-display mt-3 text-2xl leading-tight font-extrabold uppercase sm:text-3xl md:text-5xl"
             >
-            <span class="text-[0.65rem] font-bold tracking-widest md:text-xs">{{
-              i18n.t('offer.off')
-            }}</span>
-          </span>
+              {{ i18n.pick(current.title, current.titleEn) }}
+            </h2>
+          }
+          @if (current.subtitle) {
+            <p class="mt-1 text-xs text-white/80 sm:text-sm md:text-base">
+              {{ i18n.pick(current.subtitle, current.subtitleEn) }}
+            </p>
+          }
+          @if (link(); as target) {
+            <app-cta-link
+              class="mt-4 md:mt-6"
+              [label]="ctaLabel()"
+              [link]="target.path"
+              [fragment]="target.fragment"
+              [external]="target.external"
+            />
+          }
         </div>
-      </div>
-    </section>
+      </section>
+    } @else {
+      <section
+        id="offers"
+        class="bg-royal relative overflow-hidden rounded-[2rem] px-5 py-8 text-white sm:px-8 md:aspect-[12/4] md:px-12 md:py-12"
+      >
+        <app-banner-backdrop
+          variant="vivid"
+          [url]="defaultImage"
+          [mobileUrl]="defaultImageMobile"
+        />
+        <div class="relative z-10 max-w-[60%]">
+          <app-chip tone="accent">{{ i18n.t('offer.eyebrow') }}</app-chip>
+          <h2
+            class="font-display mt-3 text-2xl leading-tight font-extrabold uppercase sm:text-3xl md:text-5xl"
+          >
+            {{ i18n.t('offer.title') }}
+          </h2>
+          <p class="mt-1 text-xs text-white/80 sm:text-sm md:text-base">
+            {{ i18n.t('offer.subtitle') }}
+          </p>
+          <app-cta-link class="mt-4 md:mt-6" [label]="i18n.t('offer.cta')" link="/promotions" />
+        </div>
+      </section>
+    }
   `,
 })
 export class OfferBanner {
   protected readonly i18n = inject(I18nService);
 
-  private readonly catalog = inject(CatalogStore);
+  private readonly banners = inject(BannerStore);
 
-  protected readonly combo = computed(() => {
-    const featured = this.catalog.items().filter((item) => item.recommended);
-    return [featured[0]?.palette ?? fallbackPalette(1), featured[1]?.palette ?? fallbackPalette(2)];
+  protected readonly defaultImage = DEFAULT_BANNER_IMAGE;
+  protected readonly defaultImageMobile = DEFAULT_BANNER_IMAGE_MOBILE;
+  protected readonly banner = computed(() => this.banners.offer()[0] ?? null);
+  protected readonly link = computed(() => {
+    const current = this.banner();
+    return current ? bannerLink(current) : null;
   });
+  protected readonly ctaLabel = computed(() => {
+    const current = this.banner();
+    return current?.ctaLabel
+      ? this.i18n.pick(current.ctaLabel, current.ctaLabelEn)
+      : this.i18n.t('offer.cta');
+  });
+
+  constructor() {
+    this.banners.load();
+  }
 }

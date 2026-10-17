@@ -29,7 +29,7 @@ import { Panel } from '../../shared/components/panel/panel';
 import { PaymentMethodPicker } from '../../shared/components/payment-method-picker/payment-method-picker';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
-import { orderSummaryLines } from '../../shared/utils/order-lines';
+import { OrderLinesService } from '../../shared/services/order-lines.service';
 import { isTrackingToken } from '../../shared/utils/sanitize';
 
 const POLL_MS = 10_000;
@@ -234,6 +234,7 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
 })
 export class TrackOrderPage {
   protected readonly i18n = inject(I18nService);
+  private readonly orderLines = inject(OrderLinesService);
   private readonly orderApi = inject(OrderApi);
   private readonly messages = inject(MessageService);
   protected readonly auth = inject(AuthStore);
@@ -258,9 +259,7 @@ export class TrackOrderPage {
     { initialValue: [] },
   );
 
-  protected readonly lines = computed(() =>
-    orderSummaryLines(this.order()?.items ?? [], this.i18n),
-  );
+  protected readonly lines = computed(() => this.orderLines.summarize(this.order()?.items ?? []));
 
   protected readonly latestPayment = computed(() => this.order()?.payments.at(-1) ?? null);
   protected readonly hasPendingSlip = computed(() => this.latestPayment()?.status === 'PENDING');

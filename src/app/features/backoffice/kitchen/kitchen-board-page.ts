@@ -18,9 +18,13 @@ import { Crumb } from '../../../shared/components/breadcrumbs/breadcrumbs';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
+import { PayLaterTag } from '../../../shared/components/pay-later-tag/pay-later-tag';
+import { TooltipModule } from 'primeng/tooltip';
 import { minutesSince } from '../../../shared/utils/format';
-import { orderSummaryLines } from '../../../shared/utils/order-lines';
+import { OrderLinesService } from '../../../shared/services/order-lines.service';
+import { SummaryLine } from '../../../shared/utils/order-lines';
 import { readStorage, writeStorage } from '../../../shared/utils/storage';
+import { LineExtras } from '../../../shared/components/line-extras/line-extras';
 
 const POLL_MS = 5_000;
 const SOUND_KEY = 'roti.kitchen.sound';
@@ -63,7 +67,17 @@ const COLUMNS: BoardColumn[] = [
 
 @Component({
   selector: 'app-kitchen-board-page',
-  imports: [FormsModule, ButtonModule, ToggleSwitchModule, EmptyState, PageHeader, StatusTag],
+  imports: [
+    PayLaterTag,
+    TooltipModule,
+    LineExtras,
+    FormsModule,
+    ButtonModule,
+    ToggleSwitchModule,
+    EmptyState,
+    PageHeader,
+    StatusTag,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t('bo.nav.kitchen')" [crumbs]="crumbs" />
@@ -104,6 +118,9 @@ const COLUMNS: BoardColumn[] = [
                     </div>
                     <div class="flex flex-col items-end gap-1">
                       <app-status-tag kind="channel" [value]="order.channel" />
+                      @if (order.payLater) {
+                        <app-pay-later-tag />
+                      }
                       <span class="text-xs font-semibold" [class]="waitClass(order)">
                         <i class="pi pi-clock mr-1 text-[0.65rem]"></i
                         >{{ i18n.t('kitchen.minutes', { n: waited(order) }) }}
@@ -120,8 +137,10 @@ const COLUMNS: BoardColumn[] = [
                       <li class="text-sm">
                         <span class="text-ink font-bold">{{ line.qty }}×</span>
                         <span class="text-ink ml-1">{{ line.name }}</span>
-                        @if (line.extras) {
-                          <p class="text-ink-muted pl-6 text-xs">{{ line.extras }}</p>
+                        @if (line.extras || line.omitted.length) {
+                          <p class="text-ink-muted pl-6 text-xs">
+                            <app-line-extras [line]="line" />
+                          </p>
                         }
                       </li>
                     }
@@ -133,15 +152,22 @@ const COLUMNS: BoardColumn[] = [
                       <i class="pi pi-comment mr-1"></i>{{ order.note }}
                     </p>
                   }
-                  <p-button
-                    styleClass="mt-3"
-                    [label]="i18n.t(column.actionKey)"
-                    [icon]="column.icon"
-                    [rounded]="true"
-                    [fluid]="true"
-                    [loading]="updating() === order.id"
-                    (onClick)="advance(order, column.next)"
-                  />
+                  @let blocked = column.next === 'COMPLETED' && !!order.payLater;
+                  <div
+                    class="mt-3"
+                    [pTooltip]="blocked ? i18n.t('bo.payFirst') : ''"
+                    tooltipPosition="top"
+                  >
+                    <p-button
+                      [label]="i18n.t(column.actionKey)"
+                      [icon]="column.icon"
+                      [rounded]="true"
+                      [fluid]="true"
+                      [disabled]="blocked"
+                      [loading]="updating() === order.id"
+                      (onClick)="advance(order, column.next)"
+                    />
+                  </div>
                 </article>
               } @empty {
                 <app-empty-state icon="pi pi-inbox" [title]="i18n.t('kitchen.empty')" />
@@ -155,6 +181,7 @@ const COLUMNS: BoardColumn[] = [
 })
 export class KitchenBoardPage {
   protected readonly i18n = inject(I18nService);
+  private readonly orderLines = inject(OrderLinesService);
   private readonly api = inject(OrderApi);
 
   protected readonly crumbs: Crumb[] = [
@@ -179,9 +206,9 @@ export class KitchenBoardPage {
   });
 
   private readonly lineCache = computed(() => {
-    const map = new Map<number, ReturnType<typeof orderSummaryLines>>();
+    const map = new Map<number, SummaryLine[]>();
     for (const order of this.board() ?? []) {
-      map.set(order.id, orderSummaryLines(order.items, this.i18n));
+      map.set(order.id, this.orderLines.summarize(order.items));
     }
     return map;
   });

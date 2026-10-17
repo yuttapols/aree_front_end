@@ -12,6 +12,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { TranslationKey } from '../../../core/i18n/translations';
 import { MenuItem, MenuOption } from '../../../core/models/menu.model';
 import { ProductImage } from '../product-image/product-image';
 import { OptionSelector } from '../option-selector/option-selector';
@@ -85,20 +86,22 @@ export interface OptionsResult {
           />
         }
 
-        <div
-          class="bg-card border-line sticky -bottom-5 -mx-5 mt-6 flex items-center justify-between gap-4 border-t px-5 pt-4 pb-5"
-        >
-          <div>
-            <p class="text-ink-muted mb-1 text-xs">{{ i18n.t('options.quantity') }}</p>
-            <app-qty-stepper
-              [qty]="qty()"
-              [min]="1"
-              (increment)="qty.set(qty() + 1)"
-              (decrement)="qty.set(qty() - 1)"
-            />
-          </div>
+        <div class="dialog-actions flex items-center justify-between gap-4">
+          @if (showQty()) {
+            <div>
+              <p class="text-ink-muted mb-1 text-xs">{{ i18n.t('options.quantity') }}</p>
+              <app-qty-stepper
+                [qty]="qty()"
+                [min]="1"
+                (increment)="qty.set(qty() + 1)"
+                (decrement)="qty.set(qty() - 1)"
+              />
+            </div>
+          } @else {
+            <span class="text-ink-muted font-bold">×{{ qty() }}</span>
+          }
           <p-button
-            [label]="i18n.t('options.add') + ' · ' + formatBaht(total())"
+            [label]="i18n.t(confirmLabelKey()) + ' · ' + formatBaht(total())"
             icon="pi pi-shopping-bag"
             [rounded]="true"
             size="large"
@@ -114,6 +117,10 @@ export class ItemOptionsDialog {
   protected readonly i18n = inject(I18nService);
 
   readonly item = input<MenuItem | null>(null);
+  readonly initialOptions = input<MenuOption[] | null>(null);
+  readonly initialQty = input(1);
+  readonly showQty = input(true);
+  readonly confirmLabelKey = input<TranslationKey>('options.add');
 
   readonly added = output<OptionsResult>();
   readonly closed = output<void>();
@@ -135,8 +142,9 @@ export class ItemOptionsDialog {
   constructor() {
     effect(() => {
       const item = this.item();
-      this.selected.set(item ? defaultSelection(item.optionGroups) : []);
-      this.qty.set(1);
+      const initial = this.initialOptions();
+      this.selected.set(item ? (initial ?? defaultSelection(item.optionGroups)) : []);
+      this.qty.set(this.initialQty());
     });
   }
 

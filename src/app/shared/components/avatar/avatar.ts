@@ -1,18 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { AvatarModule } from 'primeng/avatar';
 
+import { FileUrlPipe } from '../../pipes/file-url.pipe';
+
 export type AvatarSize = 'normal' | 'large' | 'xlarge';
 
 const THAI_LEADING_VOWELS = /^[เแโใไ]/;
 
 @Component({
   selector: 'app-avatar',
-  imports: [AvatarModule],
+  imports: [AvatarModule, FileUrlPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'inline-flex shrink-0' },
   template: `
     @if (url()) {
-      <p-avatar [image]="url()!" shape="circle" [size]="size()" styleClass="object-cover" />
+      <p-avatar
+        [image]="(url() | fileUrl)!"
+        shape="circle"
+        [size]="size()"
+        styleClass="object-cover"
+      />
     } @else if (initial()) {
       <p-avatar [label]="initial()" shape="circle" [size]="size()" [styleClass]="toneClass()" />
     } @else {

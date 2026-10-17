@@ -24,6 +24,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Panel } from '../../../shared/components/panel/panel';
 import { SearchBox } from '../../../shared/components/search-box/search-box';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
+import { PayLaterTag } from '../../../shared/components/pay-later-tag/pay-later-tag';
 import { formatDate, formatMoney, toDateKey } from '../../../shared/utils/format';
 
 const PAGE_SIZE = 10;
@@ -40,6 +41,7 @@ const CHANNELS: OrderChannel[] = ['WALK_IN', 'ONLINE'];
 @Component({
   selector: 'app-orders-page',
   imports: [
+    PayLaterTag,
     FormsModule,
     DatePickerModule,
     SelectModule,
@@ -117,7 +119,12 @@ const CHANNELS: OrderChannel[] = ['WALK_IN', 'ONLINE'];
                 <app-status-tag kind="channel" [value]="row.channel" />
               }
               @case ('status') {
-                <app-status-tag kind="order" [value]="row.status" />
+                <span class="inline-flex flex-wrap items-center gap-1.5">
+                  <app-status-tag kind="order" [value]="row.status" />
+                  @if (row.payLater) {
+                    <app-pay-later-tag [amount]="row.remainingAmount ?? null" />
+                  }
+                </span>
               }
             }
           </ng-template>

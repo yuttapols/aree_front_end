@@ -1,6 +1,7 @@
 import { OptionGroupResponse, ProductBadge } from '../../api/models/catalog.model';
 import { PlatePaletteDto } from '../../api/models/common.model';
 import type { MockCategory } from '../mock-db';
+import { generatedProductCode } from '../mock-utils';
 
 export const SEED_CATEGORIES: MockCategory[] = [
   {
@@ -429,7 +430,7 @@ const PRODUCTS: SeedProduct[] = [
 export const SEED_PRODUCTS = [...PRODUCTS, ...DEFAULT_ROTI_MENU].map((product, index) => ({
   id: index + 1,
   categoryId: product.categoryId,
-  code: product.code,
+  code: generatedProductCode(product.categoryId, index + 1),
   name: product.name,
   nameEn: product.nameEn,
   description: product.description,

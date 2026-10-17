@@ -72,6 +72,11 @@ export const BACKOFFICE_ROUTES: Routes = [
       import('./promotions/admin-promotions-page').then((m) => m.AdminPromotionsPage),
   },
   {
+    path: 'banners',
+    canActivate: adminOnly,
+    loadComponent: () => import('./banners/banners-page').then((m) => m.BannersPage),
+  },
+  {
     path: 'promotions/new',
     canActivate: adminOnly,
     loadComponent: () =>

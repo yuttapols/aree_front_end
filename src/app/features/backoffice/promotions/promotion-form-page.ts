@@ -156,6 +156,7 @@ const DAYS = [1, 2, 3, 4, 5, 6, 7];
                 {{ i18n.t('bo.promotions.banner') }}
               </p>
               <app-image-upload
+                endpoint="/files?folder=BANNERS"
                 [url]="form.controls.bannerUrl.value"
                 (urlChange)="form.controls.bannerUrl.setValue($event)"
               />

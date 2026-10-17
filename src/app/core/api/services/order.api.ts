@@ -2,11 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { ApiClient } from '../api-client';
+import { RequestOptions } from '../../http/http-context';
 import { PageResponse } from '../models/common.model';
 import {
   AddPaymentRequest,
   AdminQuoteRequest,
   AttachSlipRequest,
+  CartItemRequest,
   CreateOnlineOrderRequest,
   CreatePosOrderRequest,
   KitchenBoardResponse,
@@ -82,8 +84,8 @@ export class OrderApi {
     return this.api.get<PageResponse<OrderResponse>>('/admin/orders', { ...query });
   }
 
-  order(id: number): Observable<OrderResponse> {
-    return this.api.get<OrderResponse>(`/admin/orders/${id}`);
+  order(id: number, options?: RequestOptions): Observable<OrderResponse> {
+    return this.api.get<OrderResponse>(`/admin/orders/${id}`, undefined, options);
   }
 
   board(): Observable<KitchenBoardResponse> {
@@ -96,6 +98,18 @@ export class OrderApi {
     return this.api.patch<OrderResponse>(`/admin/orders/${id}/status`, { status });
   }
 
+  updateItem(orderId: number, itemId: number, item: CartItemRequest): Observable<OrderResponse> {
+    return this.api.put<OrderResponse>(`/admin/orders/${orderId}/items/${itemId}`, item);
+  }
+
+  complete(id: number): Observable<OrderResponse> {
+    return this.api.post<OrderResponse>(`/admin/orders/${id}/complete`);
+  }
+
+  markPayLater(id: number): Observable<OrderResponse> {
+    return this.api.post<OrderResponse>(`/admin/orders/${id}/pay-later`);
+  }
+
   cancel(id: number, reason: string): Observable<OrderResponse> {
     return this.api.post<OrderResponse>(`/admin/orders/${id}/cancel`, { reason });
   }
@@ -104,8 +118,17 @@ export class OrderApi {
     return this.api.get<ReceiptResponse>(`/admin/orders/${id}/receipt`);
   }
 
-  payments(status: PaymentStatus, background = false): Observable<PendingPaymentItem[]> {
-    return this.api.get<PendingPaymentItem[]>('/admin/payments', { status }, { background });
+  payments(
+    status: PaymentStatus,
+    page: number,
+    size: number,
+    background = false,
+  ): Observable<PageResponse<PendingPaymentItem>> {
+    return this.api.get<PageResponse<PendingPaymentItem>>(
+      '/admin/payments',
+      { status, page, size },
+      { background },
+    );
   }
 
   slip(paymentId: number): Observable<Blob> {

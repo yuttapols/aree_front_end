@@ -104,6 +104,10 @@ export class CartService {
     }
   }
 
+  remove(key: string): void {
+    this.lines.update((lines) => lines.filter((line) => line.key !== key));
+  }
+
   clear(): void {
     this.lines.set([]);
   }

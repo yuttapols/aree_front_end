@@ -13,6 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
 import { catchError, debounceTime, finalize, of, switchMap } from 'rxjs';
 
@@ -38,12 +39,15 @@ import { SearchBox } from '../../../shared/components/search-box/search-box';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { cartSummaryLines } from '../../../shared/utils/order-lines';
 import { PosStore } from './pos.store';
+import { LineExtras } from '../../../shared/components/line-extras/line-extras';
 
 const ALL = 'all';
 
 @Component({
   selector: 'app-pos-page',
   imports: [
+    CheckboxModule,
+    LineExtras,
     FormsModule,
     ButtonModule,
     InputTextModule,
@@ -131,8 +135,8 @@ const ALL = 'all';
                 <li class="flex items-start justify-between gap-3 py-2.5">
                   <div class="min-w-0 flex-1">
                     <p class="text-ink text-sm font-semibold">{{ line.name }}</p>
-                    @if (line.extras) {
-                      <p class="text-ink-muted text-xs">{{ line.extras }}</p>
+                    @if (line.extras || line.omitted.length) {
+                      <p class="text-ink-muted text-xs"><app-line-extras [line]="line" /></p>
                     }
                     <app-qty-stepper
                       class="mt-1.5"
@@ -201,10 +205,34 @@ const ALL = 'all';
             [pointsRedeemed]="quote()?.pointsRedeemed ?? 0"
             [pointsToEarn]="store.member() ? (quote()?.pointsToEarn ?? 0) : 0"
           />
+          <label
+            class="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-3 transition"
+            [class]="
+              payLater()
+                ? 'border-red-400 bg-red-50 dark:bg-red-500/10'
+                : 'border-line bg-canvas hover:border-red-300'
+            "
+          >
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="payLater()"
+              (ngModelChange)="payLater.set($event)"
+              inputId="pos-pay-later"
+            />
+            <span class="min-w-0">
+              <span
+                class="block font-bold"
+                [class]="payLater() ? 'text-red-600 dark:text-red-400' : 'text-ink'"
+                >{{ i18n.t('pos.payLater') }}</span
+              >
+              <span class="text-ink-muted block text-xs">{{ i18n.t('pos.payLaterHint') }}</span>
+            </span>
+          </label>
           <p-button
-            styleClass="mt-4"
-            [label]="i18n.t('pos.addToQueue')"
-            icon="pi pi-list"
+            styleClass="mt-3"
+            [label]="i18n.t(payLater() ? 'pos.addPayLater' : 'pos.addToQueue')"
+            [severity]="payLater() ? 'danger' : undefined"
+            [icon]="payLater() ? 'pi pi-send' : 'pi pi-list'"
             size="large"
             [rounded]="true"
             [fluid]="true"
@@ -243,6 +271,7 @@ export class PosPage {
   protected readonly query = signal('');
   protected readonly optionsItem = signal<MenuItem | null>(null);
   protected readonly creating = signal(false);
+  protected readonly payLater = signal(false);
   protected readonly registerOpen = signal(false);
   protected readonly registerPhone = signal('');
 
@@ -275,6 +304,7 @@ export class PosPage {
         customerPhone: this.store.member()?.phone ?? null,
         promoCode: this.store.promoCode(),
         redeemPoints: this.store.redeemPoints() || null,
+        payLater: this.payLater(),
       })),
     ).pipe(
       debounceTime(200),
@@ -332,6 +362,7 @@ export class PosPage {
       .pipe(finalize(() => this.creating.set(false)))
       .subscribe((order) => {
         this.store.reset();
+        this.payLater.set(false);
         this.messages.add({
           severity: 'success',
           summary: this.i18n.t('pos.queued'),

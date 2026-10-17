@@ -33,6 +33,7 @@ export const appConfig: ApplicationConfig = {
     ConfirmationService,
     providePrimeNG({
       ripple: true,
+      overlayAppendTo: 'body',
       theme: {
         preset: RotiPreset,
         options: {

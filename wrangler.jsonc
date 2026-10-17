@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aree-front-end",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist/aree-front-end/browser",
+    "not_found_handling": "single-page-application"
+  }
+}

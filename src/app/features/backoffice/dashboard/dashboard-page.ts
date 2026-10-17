@@ -5,15 +5,19 @@ import {
   computed,
   effect,
   inject,
+  linkedSignal,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DatePickerModule } from 'primeng/datepicker';
 import { SelectButtonModule } from 'primeng/selectbutton';
-import { forkJoin } from 'rxjs';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 
 import { DateRange } from '../../../core/api/models/common.model';
 import {
+  BreakdownSlice,
   DashboardSummaryResponse,
+  DashboardTotals,
   HourlySalesResponse,
   PaymentMethodShareResponse,
   SalesTrendPoint,
@@ -22,6 +26,7 @@ import {
 } from '../../../core/api/models/dashboard.model';
 import { DashboardApi } from '../../../core/api/services/dashboard.api';
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { ShopInfoStore } from '../../../core/shop/shop-info.store';
 import { ThemeService } from '../../../core/theme/theme.service';
 import { Crumb } from '../../../shared/components/breadcrumbs/breadcrumbs';
 import { ChartCard } from '../../../shared/components/chart-card/chart-card';
@@ -29,6 +34,7 @@ import {
   DateRangeFilter,
   presetRange,
 } from '../../../shared/components/date-range-filter/date-range-filter';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { LoadingSkeleton } from '../../../shared/components/loading-skeleton/loading-skeleton';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Panel } from '../../../shared/components/panel/panel';
@@ -40,6 +46,7 @@ import {
   formatNumber,
   fromDateKey,
   percentChange,
+  toDateKey,
 } from '../../../shared/utils/format';
 
 interface DashboardData {
@@ -47,7 +54,70 @@ interface DashboardData {
   trend: SalesTrendPoint[];
   top: TopProductResponse[];
   methods: PaymentMethodShareResponse[];
-  hourly: HourlySalesResponse[];
+}
+
+const EMPTY_SLICE: BreakdownSlice = { count: 0, amount: 0 };
+
+function sliceValues(
+  first: BreakdownSlice | undefined,
+  second: BreakdownSlice | undefined,
+): number[] {
+  const slices = [first ?? EMPTY_SLICE, second ?? EMPTY_SLICE];
+  const hasAmounts = slices.some((slice) => slice.amount > 0);
+  return slices.map((slice) => (hasAmounts ? slice.amount : slice.count));
+}
+const EMPTY_TOTALS: DashboardTotals = {
+  salesAmount: 0,
+  orderCount: 0,
+  averageOrderValue: 0,
+  newMembers: 0,
+  pointsIssued: 0,
+  pointsRedeemed: 0,
+};
+const EMPTY_SUMMARY: DashboardSummaryResponse = {
+  ...EMPTY_TOTALS,
+  previous: EMPTY_TOTALS,
+  walkIn: EMPTY_SLICE,
+  online: EMPTY_SLICE,
+  member: EMPTY_SLICE,
+  guest: EMPTY_SLICE,
+};
+
+function orFallback<T>(source: Observable<T>, fallback: T): Observable<T> {
+  return source.pipe(catchError(() => of(fallback)));
+}
+
+const DEFAULT_OPEN_HOUR = 10;
+const DEFAULT_CLOSE_HOUR = 22;
+const HOURS_PER_DAY = 24;
+
+function hourOf(time: string | undefined, fallback: number): number {
+  const [hour, minute] = (time ?? '').split(':').map(Number);
+  if (hour === undefined || Number.isNaN(hour)) {
+    return fallback;
+  }
+  return minute ? hour + minute / 60 : hour;
+}
+
+function fillOpeningHours(
+  points: HourlySalesResponse[],
+  openTime: string | undefined,
+  closeTime: string | undefined,
+): HourlySalesResponse[] {
+  const openHour = Math.floor(hourOf(openTime, DEFAULT_OPEN_HOUR));
+  let closeHour = Math.ceil(hourOf(closeTime, DEFAULT_CLOSE_HOUR));
+  if (closeHour <= openHour) {
+    closeHour += HOURS_PER_DAY;
+  }
+  const byHour = new Map(points.map((point) => [point.hour, point]));
+  const hours = new Set<number>(points.map((point) => point.hour));
+  for (let hour = openHour; hour < closeHour; hour += 1) {
+    hours.add(hour % HOURS_PER_DAY);
+  }
+  const order = (hour: number) => (hour - openHour + HOURS_PER_DAY) % HOURS_PER_DAY;
+  return [...hours]
+    .sort((left, right) => order(left) - order(right))
+    .map((hour) => byHour.get(hour) ?? { hour, orderCount: 0, netSales: 0 });
 }
 
 interface ChartPalette {
@@ -63,9 +133,11 @@ interface ChartPalette {
   selector: 'app-dashboard-page',
   imports: [
     FormsModule,
+    DatePickerModule,
     SelectButtonModule,
     ChartCard,
     DateRangeFilter,
+    EmptyState,
     LoadingSkeleton,
     PageHeader,
     Panel,
@@ -90,7 +162,17 @@ interface ChartPalette {
         />
       </div>
 
-      @if (data(); as current) {
+      @if (loading()) {
+        <app-loading-skeleton variant="table" [count]="8" />
+      } @else if (!hasSales()) {
+        <app-panel>
+          <app-empty-state
+            icon="pi pi-chart-line"
+            [title]="i18n.t('dashboard.emptyTitle')"
+            [hint]="i18n.t('dashboard.emptyHint')"
+          />
+        </app-panel>
+      } @else if (data(); as current) {
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <app-stat-card
             icon="pi pi-wallet"
@@ -143,6 +225,7 @@ interface ChartPalette {
         <app-chart-card
           [heading]="i18n.t('dashboard.salesTrend')"
           type="line"
+          [emptyText]="emptyText(!hasTrend())"
           [data]="trendChart()"
           [options]="lineOptions()"
           height="20rem"
@@ -152,9 +235,22 @@ interface ChartPalette {
           <app-chart-card
             [heading]="i18n.t('dashboard.hourly')"
             type="bar"
+            [emptyText]="emptyText(!hasHourly())"
             [data]="hourlyChart()"
             [options]="barOptions()"
-          />
+          >
+            <p-datepicker
+              chartActions
+              dateFormat="dd/mm/yy"
+              size="small"
+              [readonlyInput]="true"
+              [showIcon]="true"
+              [maxDate]="today"
+              [ariaLabel]="i18n.t('dashboard.hourlyDate')"
+              [ngModel]="hourlyDateValue()"
+              (ngModelChange)="onHourlyDate($event)"
+            />
+          </app-chart-card>
           <app-panel [heading]="i18n.t('dashboard.topProducts')">
             <ol class="flex flex-col gap-3">
               @for (product of current.top; track product.productId; let index = $index) {
@@ -192,6 +288,7 @@ interface ChartPalette {
           <app-chart-card
             [heading]="i18n.t('dashboard.paymentMethods')"
             type="doughnut"
+            [emptyText]="emptyText(!hasMethods())"
             [data]="methodChart()"
             [options]="pieOptions()"
             height="16rem"
@@ -199,6 +296,7 @@ interface ChartPalette {
           <app-chart-card
             [heading]="i18n.t('dashboard.channels')"
             type="doughnut"
+            [emptyText]="emptyText(!hasSales())"
             [data]="channelChart()"
             [options]="pieOptions()"
             height="16rem"
@@ -206,13 +304,12 @@ interface ChartPalette {
           <app-chart-card
             [heading]="i18n.t('dashboard.customers')"
             type="doughnut"
+            [emptyText]="emptyText(!hasSales())"
             [data]="customerChart()"
             [options]="pieOptions()"
             height="16rem"
           />
         </div>
-      } @else {
-        <app-loading-skeleton variant="table" [count]="8" />
       }
     </div>
   `,
@@ -222,6 +319,7 @@ export class DashboardPage {
   private readonly api = inject(DashboardApi);
   private readonly theme = inject(ThemeService);
   private readonly document = inject(DOCUMENT);
+  private readonly shop = inject(ShopInfoStore);
 
   protected readonly crumbs: Crumb[] = [
     { labelKey: 'bo.title', link: '/backoffice' },
@@ -230,6 +328,11 @@ export class DashboardPage {
   protected readonly range = signal<DateRange>(presetRange('week'));
   protected readonly groupBy = signal<TrendGroupBy>('DAY');
   protected readonly data = signal<DashboardData | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly today = new Date();
+  protected readonly hourlyDate = linkedSignal(() => this.lastDayOf(this.range()));
+  protected readonly hourlyDateValue = computed(() => fromDateKey(this.hourlyDate()));
+  private readonly hourly = signal<HourlySalesResponse[]>([]);
   protected readonly format = formatNumber;
 
   protected readonly groupOptions = computed(() => [
@@ -253,6 +356,17 @@ export class DashboardPage {
       series: [brand, accent, '#10b981', '#0ea5e9', '#f43f5e', '#a3a3a3'],
     };
   });
+
+  protected readonly hasTrend = computed(() =>
+    (this.data()?.trend ?? []).some((point) => point.orderCount > 0 || point.salesAmount > 0),
+  );
+  protected readonly hasHourly = computed(() =>
+    this.hourly().some((hour) => hour.orderCount > 0 || hour.netSales > 0),
+  );
+  protected readonly hasMethods = computed(() =>
+    (this.data()?.methods ?? []).some((method) => method.amount > 0),
+  );
+  protected readonly hasSales = computed(() => (this.data()?.summary.orderCount ?? 0) > 0);
 
   protected readonly maxTop = computed(() =>
     Math.max(1, ...(this.data()?.top.map((item) => item.quantity) ?? [1])),
@@ -287,7 +401,8 @@ export class DashboardPage {
   });
 
   protected readonly hourlyChart = computed(() => {
-    const hours = (this.data()?.hourly ?? []).filter((hour) => hour.hour >= 10);
+    const info = this.shop.info();
+    const hours = fillOpeningHours(this.hourly(), info?.openTime, info?.closeTime);
     return {
       labels: hours.map((hour) => `${String(hour.hour).padStart(2, '0')}:00`),
       datasets: [
@@ -317,7 +432,7 @@ export class DashboardPage {
       labels: [this.i18n.t('status.channel.WALK_IN'), this.i18n.t('status.channel.ONLINE')],
       datasets: [
         {
-          data: [summary?.walkIn.amount ?? 0, summary?.online.amount ?? 0],
+          data: sliceValues(summary?.walkIn, summary?.online),
           backgroundColor: [this.palette().brand, this.palette().accent],
         },
       ],
@@ -330,7 +445,7 @@ export class DashboardPage {
       labels: [this.i18n.t('dashboard.member'), this.i18n.t('dashboard.guest')],
       datasets: [
         {
-          data: [summary?.member.amount ?? 0, summary?.guest.amount ?? 0],
+          data: sliceValues(summary?.member, summary?.guest),
           backgroundColor: [this.palette().brand, this.palette().series[5]],
         },
       ],
@@ -384,14 +499,38 @@ export class DashboardPage {
     effect(() => {
       const range = this.range();
       const groupBy = this.groupBy();
+      this.loading.set(true);
       forkJoin({
-        summary: this.api.summary(range),
-        trend: this.api.salesTrend(range, groupBy),
-        top: this.api.topProducts(range, 5),
-        methods: this.api.paymentMethods(range),
-        hourly: this.api.hourly(range),
-      }).subscribe((data) => this.data.set(data));
+        summary: orFallback(this.api.summary(range), EMPTY_SUMMARY),
+        trend: orFallback(this.api.salesTrend(range, groupBy), []),
+        top: orFallback(this.api.topProducts(range, 5), []),
+        methods: orFallback(this.api.paymentMethods(range), []),
+      }).subscribe((data) => {
+        this.data.set(data);
+        this.loading.set(false);
+      });
     });
+    effect(() => {
+      orFallback(this.api.hourly(this.hourlyDate()), []).subscribe((hours) =>
+        this.hourly.set(hours),
+      );
+    });
+    this.shop.ensureLoaded();
+  }
+
+  protected onHourlyDate(value: Date | null): void {
+    if (value) {
+      this.hourlyDate.set(toDateKey(value));
+    }
+  }
+
+  private lastDayOf(range: DateRange): string {
+    const todayKey = toDateKey(new Date());
+    return range.to < todayKey ? range.to : todayKey;
+  }
+
+  protected emptyText(isEmpty: boolean): string | null {
+    return isEmpty ? this.i18n.t('dashboard.noData') : null;
   }
 
   protected money(value: number): string {

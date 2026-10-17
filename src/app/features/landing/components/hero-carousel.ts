@@ -8,12 +8,20 @@ import {
   signal,
 } from '@angular/core';
 
+import { BannerResponse } from '../../../core/api/models/banner.model';
+import { BannerStore } from '../../../core/banner/banner.store';
 import { CatalogStore } from '../../../core/catalog/catalog.store';
 import { HERO_SLIDES } from '../../../core/data/menu.data';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { MenuItem } from '../../../core/models/menu.model';
+import { BannerBackdrop } from '../../../shared/components/banner-backdrop/banner-backdrop';
 import { CtaLink } from '../../../shared/components/cta-link/cta-link';
 import { FoodPlate } from '../../../shared/components/food-plate/food-plate';
+import {
+  bannerLink,
+  DEFAULT_BANNER_IMAGE,
+  DEFAULT_BANNER_IMAGE_MOBILE,
+} from '../../../shared/utils/banner';
 import { promotionHeadline } from '../../../shared/utils/promotion';
 
 interface Slide {
@@ -23,8 +31,11 @@ interface Slide {
   highlight: string;
   subtitle: string;
   items: MenuItem[];
-  link: string;
+  imageUrl: string | null;
+  imageUrlMobile: string | null;
+  link: string | null;
   fragment?: string;
+  external?: boolean;
   cta: string;
 }
 
@@ -43,7 +54,7 @@ const SWIPE_THRESHOLD = 40;
 
 @Component({
   selector: 'app-hero-carousel',
-  imports: [CtaLink, FoodPlate],
+  imports: [BannerBackdrop, CtaLink, FoodPlate],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
@@ -69,34 +80,55 @@ const SWIPE_THRESHOLD = 40;
       >
         @for (slide of slides(); track slide.id; let i = $index) {
           <div
-            class="grid min-w-full grid-cols-[1.25fr_1fr] items-center gap-2 px-5 pt-6 pb-12 sm:px-8 md:px-12 md:pt-12 md:pb-16"
+            class="relative grid min-w-full grid-cols-[1.25fr_1fr] items-center gap-2 px-5 pt-6 pb-12 sm:px-8 md:px-12 md:pt-12 md:pb-16"
             role="group"
             aria-roledescription="slide"
             [attr.aria-hidden]="i !== index()"
           >
+            <app-banner-backdrop
+              variant="vivid"
+              [url]="slide.imageUrl"
+              [mobileUrl]="slide.imageUrlMobile"
+              [eager]="i === 0"
+            />
             <div class="relative z-10">
-              <h2
-                class="font-display text-[1.35rem] leading-[1.1] font-extrabold uppercase sm:text-3xl md:text-5xl"
-              >
-                {{ slide.lineOne }}<br />{{ slide.lineTwo }}
-              </h2>
-              <p
-                class="font-display text-accent mt-1 text-2xl font-extrabold italic sm:text-3xl md:mt-2 md:text-5xl"
-              >
-                {{ slide.highlight }}
-              </p>
-              <p class="mt-2 max-w-sm text-xs text-white/80 sm:text-sm md:mt-4 md:text-base">
-                {{ slide.subtitle }}
-              </p>
-              <app-cta-link
-                class="mt-4 md:mt-7"
-                [label]="slide.cta"
-                [link]="slide.link"
-                [fragment]="slide.fragment"
-              />
+              @if (slide.lineOne) {
+                <h2
+                  class="font-display text-[1.35rem] leading-[1.1] font-extrabold uppercase sm:text-3xl md:text-5xl"
+                >
+                  {{ slide.lineOne }}
+                  @if (slide.lineTwo) {
+                    <br />{{ slide.lineTwo }}
+                  }
+                </h2>
+              }
+              @if (slide.highlight) {
+                <p
+                  class="font-display text-accent mt-1 text-2xl font-extrabold italic sm:text-3xl md:mt-2 md:text-5xl"
+                >
+                  {{ slide.highlight }}
+                </p>
+              }
+              @if (slide.subtitle) {
+                <p class="mt-2 max-w-sm text-xs text-white/80 sm:text-sm md:mt-4 md:text-base">
+                  {{ slide.subtitle }}
+                </p>
+              }
+              @if (slide.link) {
+                <app-cta-link
+                  class="mt-4 md:mt-7"
+                  [label]="slide.cta"
+                  [link]="slide.link"
+                  [fragment]="slide.fragment"
+                  [external]="!!slide.external"
+                />
+              }
             </div>
 
-            <div class="relative aspect-square w-full max-w-80 justify-self-center">
+            <div
+              class="relative aspect-square w-full max-w-80 justify-self-center"
+              [class.invisible]="slide.imageUrl"
+            >
               <div class="absolute inset-[8%] rounded-full bg-white/10"></div>
               @if (slide.items[0]; as item) {
                 <app-food-plate
@@ -172,6 +204,7 @@ export class HeroCarousel {
   protected readonly i18n = inject(I18nService);
   private readonly document = inject(DOCUMENT);
   private readonly catalog = inject(CatalogStore);
+  private readonly banners = inject(BannerStore);
 
   protected readonly index = signal(0);
   protected readonly autoplayMs = AUTOPLAY_MS;
@@ -181,6 +214,31 @@ export class HeroCarousel {
   private touchStartX = 0;
 
   protected readonly slides = computed<Slide[]>(() => {
+    const banners = this.banners.hero();
+    return banners.length ? banners.map((banner) => this.fromBanner(banner)) : this.defaultSlides();
+  });
+
+  private fromBanner(banner: BannerResponse): Slide {
+    const link = bannerLink(banner);
+    return {
+      id: `banner-${banner.id}`,
+      lineOne: banner.title ? this.i18n.pick(banner.title, banner.titleEn) : '',
+      lineTwo: '',
+      highlight: '',
+      subtitle: banner.subtitle ? this.i18n.pick(banner.subtitle, banner.subtitleEn) : '',
+      items: [],
+      imageUrl: banner.imageUrl,
+      imageUrlMobile: banner.imageUrlMobile,
+      link: link?.path ?? null,
+      fragment: link?.fragment,
+      external: link?.external,
+      cta: banner.ctaLabel
+        ? this.i18n.pick(banner.ctaLabel, banner.ctaLabelEn)
+        : this.i18n.t('hero.cta'),
+    };
+  }
+
+  private defaultSlides(): Slide[] {
     const recommended = this.catalog.items().filter((item) => item.recommended);
     const promotionSlides = this.catalog
       .promotions()
@@ -196,6 +254,8 @@ export class HeroCarousel {
           highlight: promotionHeadline(promotion, this.i18n),
           subtitle: this.i18n.pick(promotion.description, promotion.descriptionEn),
           items: (targeted.length ? targeted : recommended).slice(0, 3),
+          imageUrl: promotion.bannerUrl ?? DEFAULT_BANNER_IMAGE,
+          imageUrlMobile: promotion.bannerUrl ? null : DEFAULT_BANNER_IMAGE_MOBILE,
           link: `/promotions/${promotion.id}`,
           cta: this.i18n.t('hero.promoCta'),
         };
@@ -208,14 +268,17 @@ export class HeroCarousel {
       highlight: this.i18n.text(slide.highlight),
       subtitle: this.i18n.text(slide.subtitle),
       items: rotate(featured, slideIndex * HERO_PLATE_COUNT).slice(0, HERO_PLATE_COUNT),
+      imageUrl: DEFAULT_BANNER_IMAGE,
+      imageUrlMobile: DEFAULT_BANNER_IMAGE_MOBILE,
       link: '/',
       fragment: 'menu',
       cta: this.i18n.t('hero.cta'),
     }));
     return [...promotionSlides, ...brandSlides];
-  });
+  }
 
   constructor() {
+    this.banners.load();
     const reduceMotion = this.document.defaultView?.matchMedia(
       '(prefers-reduced-motion: reduce)',
     ).matches;

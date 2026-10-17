@@ -29,11 +29,13 @@ import { Panel } from '../../../shared/components/panel/panel';
 import { ReceiptDialog } from '../../../shared/components/receipt-dialog/receipt-dialog';
 import { ReceivePaymentDialog } from '../../../shared/components/receive-payment-dialog/receive-payment-dialog';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
+import { PayLaterTag } from '../../../shared/components/pay-later-tag/pay-later-tag';
+import { TooltipModule } from 'primeng/tooltip';
 import { SummaryRow } from '../../../shared/components/summary-row/summary-row';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { ThaiDatePipe } from '../../../shared/pipes/thai-date.pipe';
 import { formatPhone } from '../../../shared/utils/format';
-import { orderSummaryLines } from '../../../shared/utils/order-lines';
+import { OrderLinesService } from '../../../shared/services/order-lines.service';
 
 const NEXT_STATUS: Partial<
   Record<OrderStatus, { status: OrderStatus; labelKey: TranslationKey; icon: string }>
@@ -46,6 +48,8 @@ const NEXT_STATUS: Partial<
 @Component({
   selector: 'app-order-detail-page',
   imports: [
+    PayLaterTag,
+    TooltipModule,
     FormsModule,
     RouterLink,
     ButtonModule,
@@ -78,18 +82,25 @@ const NEXT_STATUS: Partial<
               <div panelActions class="flex flex-wrap items-center gap-2">
                 <app-status-tag kind="channel" [value]="current.channel" />
                 <app-status-tag kind="order" [value]="current.status" />
+                @if (current.payLater) {
+                  <app-pay-later-tag [amount]="current.remainingAmount" />
+                }
               </div>
               <div class="mb-4 flex flex-wrap gap-2">
                 @if (next(); as action) {
-                  <p-button
-                    [label]="i18n.t(action.labelKey)"
-                    [icon]="action.icon"
-                    [rounded]="true"
-                    [loading]="busy()"
-                    (onClick)="advance(action.status)"
-                  />
+                  @let blocked = action.status === 'COMPLETED' && !!current.payLater;
+                  <span [pTooltip]="blocked ? i18n.t('bo.payFirst') : ''" tooltipPosition="top">
+                    <p-button
+                      [label]="i18n.t(action.labelKey)"
+                      [icon]="action.icon"
+                      [rounded]="true"
+                      [loading]="busy()"
+                      [disabled]="blocked"
+                      (onClick)="advance(action.status)"
+                    />
+                  </span>
                 }
-                @if (current.status === 'PENDING_PAYMENT') {
+                @if (current.status === 'PENDING_PAYMENT' || current.payLater) {
                   <p-button
                     [label]="i18n.t('pos.receivePayment')"
                     icon="pi pi-wallet"
@@ -289,6 +300,7 @@ const NEXT_STATUS: Partial<
 })
 export class OrderDetailPage {
   protected readonly i18n = inject(I18nService);
+  private readonly orderLines = inject(OrderLinesService);
   private readonly api = inject(OrderApi);
   private readonly messages = inject(MessageService);
 
@@ -310,9 +322,7 @@ export class OrderDetailPage {
   protected readonly slipUrl = signal<string | null>(null);
   protected readonly phone = formatPhone;
 
-  protected readonly lines = computed(() =>
-    orderSummaryLines(this.order()?.items ?? [], this.i18n),
-  );
+  protected readonly lines = computed(() => this.orderLines.summarize(this.order()?.items ?? []));
   protected readonly next = computed(() => {
     const status = this.order()?.status;
     return status ? (NEXT_STATUS[status] ?? null) : null;
@@ -381,7 +391,7 @@ export class OrderDetailPage {
 
   protected onPaid(order: OrderResponse): void {
     this.order.set(order);
-    this.paying.set(order.status === 'PENDING_PAYMENT' ? order : null);
+    this.paying.set(order.status === 'PENDING_PAYMENT' || order.payLater ? order : null);
     this.messages.add({ severity: 'success', summary: this.i18n.t('pos.paid') });
   }
 
