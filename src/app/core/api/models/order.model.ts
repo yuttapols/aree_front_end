@@ -216,13 +216,6 @@ export interface AddPaymentRequest {
   referenceNo: string | null;
 }
 
-export interface AttachSlipRequest {
-  methodCode: PaymentMethodCode;
-  amount?: number | null;
-  referenceNo?: string | null;
-  slip: File;
-}
-
 export interface VerifyPaymentRequest {
   approve: boolean;
   rejectReason: string | null;

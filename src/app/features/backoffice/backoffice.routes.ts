@@ -27,11 +27,6 @@ export const BACKOFFICE_ROUTES: Routes = [
     loadComponent: () => import('./orders/order-detail-page').then((m) => m.OrderDetailPage),
   },
   {
-    path: 'payments/pending',
-    loadComponent: () =>
-      import('./payments/pending-payments-page').then((m) => m.PendingPaymentsPage),
-  },
-  {
     path: 'customers',
     loadComponent: () => import('./customers/customers-page').then((m) => m.CustomersPage),
   },

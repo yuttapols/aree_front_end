@@ -1,15 +1,7 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 
-import { OrderApi } from '../../core/api/services/order.api';
 import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -22,8 +14,6 @@ import { LangSwitch } from '../../shared/components/lang-switch/lang-switch';
 import { PAGE_HEADER_CONTAINER } from '../../shared/components/page-header/page-header';
 import { SideNav, SideNavItem } from '../../shared/components/side-nav/side-nav';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
-
-const PENDING_POLL_MS = 15_000;
 
 const STAFF_ITEMS: SideNavItem[] = [
   { id: 'today', labelKey: 'bo.nav.today', icon: 'pi pi-home', link: '/backoffice/today' },
@@ -42,13 +32,6 @@ const STAFF_ITEMS: SideNavItem[] = [
     hidden: true,
   },
   { id: 'orders', labelKey: 'bo.nav.orders', icon: 'pi pi-receipt', link: '/backoffice/orders' },
-  {
-    id: 'payments',
-    labelKey: 'bo.nav.payments',
-    icon: 'pi pi-wallet',
-    link: '/backoffice/payments/pending',
-    hidden: true,
-  },
   {
     id: 'customers',
     labelKey: 'bo.nav.customers',
@@ -182,9 +165,6 @@ export class BackofficeLayout {
   protected readonly theme = inject(ThemeService);
   protected readonly auth = inject(AuthStore);
   private readonly signOutFlow = inject(SignOutService);
-  private readonly orderApi = inject(OrderApi);
-
-  private readonly pendingPayments = signal(0);
 
   protected readonly footerItems: SideNavItem[] = [
     { id: 'storefront', labelKey: 'bo.storefront', icon: 'pi pi-shop', link: '/', exact: true },
@@ -198,10 +178,7 @@ export class BackofficeLayout {
   ];
 
   protected readonly items = computed<SideNavItem[]>(() => {
-    const staff = STAFF_GROUPED.map((item) =>
-      item.id === 'payments' ? { ...item, badge: this.pendingPayments() || null } : item,
-    );
-    return this.auth.isAdmin() ? [...staff, ...ADMIN_GROUPED] : staff;
+    return this.auth.isAdmin() ? [...STAFF_GROUPED, ...ADMIN_GROUPED] : STAFF_GROUPED;
   });
 
   protected readonly menuItems = computed<MenuItem[]>(() => [
@@ -215,12 +192,6 @@ export class BackofficeLayout {
     },
   ]);
 
-  constructor() {
-    this.loadPending();
-    const timer = setInterval(() => this.loadPending(), PENDING_POLL_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
-  }
-
   protected onAction(action: string): void {
     if (action === 'logout') {
       this.logout();
@@ -233,12 +204,5 @@ export class BackofficeLayout {
 
   private logout(): void {
     this.signOutFlow.request();
-  }
-
-  private loadPending(): void {
-    this.orderApi.payments('PENDING', 0, 1, true).subscribe({
-      next: (page) => this.pendingPayments.set(page.totalItems),
-      error: () => this.pendingPayments.set(0),
-    });
   }
 }

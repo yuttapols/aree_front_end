@@ -7,7 +7,6 @@ import { PageResponse } from '../models/common.model';
 import {
   AddPaymentRequest,
   AdminQuoteRequest,
-  AttachSlipRequest,
   CartItemRequest,
   CreateOnlineOrderRequest,
   CreatePosOrderRequest,
@@ -48,19 +47,6 @@ export class OrderApi {
 
   track(token: string, background = false): Observable<OrderResponse> {
     return this.api.get<OrderResponse>(`/public/orders/track/${token}`, undefined, { background });
-  }
-
-  attachSlip(token: string, request: AttachSlipRequest): Observable<PaymentResponse> {
-    const form = new FormData();
-    form.append('methodCode', request.methodCode);
-    if (request.amount != null) {
-      form.append('amount', String(request.amount));
-    }
-    if (request.referenceNo) {
-      form.append('referenceNo', request.referenceNo);
-    }
-    form.append('slip', request.slip);
-    return this.api.post<PaymentResponse>(`/public/orders/track/${token}/payments`, form);
   }
 
   myOrders(page: number, size: number): Observable<PageResponse<OrderListItem>> {
@@ -136,17 +122,6 @@ export class OrderApi {
 
   slip(paymentId: number): Observable<Blob> {
     return this.api.getBlob(`/admin/payments/${paymentId}/slip`);
-  }
-
-  verifyPayment(
-    id: number,
-    approve: boolean,
-    rejectReason: string | null,
-  ): Observable<PaymentResponse> {
-    return this.api.patch<PaymentResponse>(`/admin/payments/${id}/verify`, {
-      approve,
-      rejectReason,
-    });
   }
 
   today(): Observable<TodayResponse> {
