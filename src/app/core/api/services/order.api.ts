@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { ApiClient } from '../api-client';
 import { RequestOptions } from '../../http/http-context';
@@ -14,6 +14,7 @@ import {
   KitchenBoardResponse,
   OrderChannel,
   OrderQuery,
+  OrderListItem,
   OrderResponse,
   OrderStatus,
   PaymentMethodResponse,
@@ -36,7 +37,9 @@ export class OrderApi {
   }
 
   quote(request: QuoteRequest): Observable<QuoteResponse> {
-    return this.api.post<QuoteResponse>('/public/orders/quote', request, { background: true });
+    return this.api
+      .post<QuoteResponse>('/public/orders/quote', request, { background: true })
+      .pipe(map((quote) => ({ ...quote, totalAmount: quote.totalAmount ?? quote.total ?? 0 })));
   }
 
   createOnline(request: CreateOnlineOrderRequest): Observable<OrderResponse> {
@@ -60,8 +63,8 @@ export class OrderApi {
     return this.api.post<PaymentResponse>(`/public/orders/track/${token}/payments`, form);
   }
 
-  myOrders(page: number, size: number): Observable<PageResponse<OrderResponse>> {
-    return this.api.get<PageResponse<OrderResponse>>('/me/orders', { page, size });
+  myOrders(page: number, size: number): Observable<PageResponse<OrderListItem>> {
+    return this.api.get<PageResponse<OrderListItem>>('/me/orders', { page, size });
   }
 
   myOrder(orderNo: string): Observable<OrderResponse> {
@@ -80,8 +83,8 @@ export class OrderApi {
     return this.api.post<OrderResponse>(`/admin/orders/${orderId}/payments`, request);
   }
 
-  orders(query: OrderQuery): Observable<PageResponse<OrderResponse>> {
-    return this.api.get<PageResponse<OrderResponse>>('/admin/orders', { ...query });
+  orders(query: OrderQuery, options?: RequestOptions): Observable<PageResponse<OrderResponse>> {
+    return this.api.get<PageResponse<OrderResponse>>('/admin/orders', { ...query }, options);
   }
 
   order(id: number, options?: RequestOptions): Observable<OrderResponse> {
@@ -102,8 +105,8 @@ export class OrderApi {
     return this.api.put<OrderResponse>(`/admin/orders/${orderId}/items/${itemId}`, item);
   }
 
-  complete(id: number): Observable<OrderResponse> {
-    return this.api.post<OrderResponse>(`/admin/orders/${id}/complete`);
+  complete(id: number, payment?: AddPaymentRequest): Observable<OrderResponse> {
+    return this.api.post<OrderResponse>(`/admin/orders/${id}/complete`, payment);
   }
 
   markPayLater(id: number): Observable<OrderResponse> {

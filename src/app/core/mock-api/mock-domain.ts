@@ -964,7 +964,7 @@ export function attachSlip(
   const method = state.paymentMethods.find(
     (candidate) => candidate.code === input.methodCode && candidate.active,
   );
-  if (!method || !method.requiresSlip) {
+  if (!method) {
     throw badRequest('Invalid payment method', [{ field: 'methodCode', message: 'invalid' }]);
   }
   if (!input.slipUrl) {
@@ -1065,11 +1065,8 @@ export function toCustomer(state: MockState, user: MockUser): CustomerResponse {
   const orders = state.orders.filter(
     (order) => order.customerId === user.id && order.status === 'COMPLETED',
   );
-  const lastOrder = state.orders
-    .filter((order) => order.customerId === user.id)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   return {
-    id: user.id,
+    userId: user.id,
     memberCode: user.profile?.memberCode ?? '',
     phone: user.phone,
     email: user.email,
@@ -1082,8 +1079,7 @@ export function toCustomer(state: MockState, user: MockUser): CustomerResponse {
     status: user.status,
     orderCount: orders.length,
     totalSpent: roundMoney(orders.reduce((total, order) => total + order.totalAmount, 0)),
-    lastOrderAt: lastOrder?.createdAt ?? null,
-    createdAt: user.createdAt,
+    memberSince: user.createdAt,
   };
 }
 
@@ -1106,7 +1102,7 @@ export function toPaymentMethod(
 ): PaymentMethodResponse {
   return {
     ...method,
-    promptpayId: method.code === 'PROMPTPAY' ? state.settings.promptpayId || null : null,
+    promptPayId: method.code === 'PROMPTPAY' ? state.settings.promptpayId || null : null,
     bankAccount: method.code === 'TRANSFER' ? state.settings.bankAccount || null : null,
   };
 }

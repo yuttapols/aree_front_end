@@ -3,6 +3,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { readJson, writeJson } from '../../shared/utils/storage';
 import { sumOptionPrices } from '../../shared/utils/price';
 import { CartItemRequest } from '../api/models/order.model';
+import { AuthStore } from '../auth/auth.store';
 import { CatalogStore } from '../catalog/catalog.store';
 import { CartLine, MenuItem, MenuOption } from '../models/menu.model';
 
@@ -29,6 +30,8 @@ export function toCartItemRequests(lines: CartLine[]): CartItemRequest[] {
 @Injectable({ providedIn: 'root' })
 export class CartService {
   private readonly catalog = inject(CatalogStore);
+  private readonly authStore = inject(AuthStore);
+  private wasLoggedIn = false;
   private readonly hydrated = signal(false);
   private hydrating = false;
 
@@ -52,6 +55,13 @@ export class CartService {
 
   constructor() {
     this.catalog.load();
+    effect(() => {
+      const loggedIn = this.authStore.isLoggedIn();
+      if (this.wasLoggedIn && !loggedIn) {
+        this.clear();
+      }
+      this.wasLoggedIn = loggedIn;
+    });
     effect(() => {
       if (this.catalog.loaded() && !this.hydrating && !this.hydrated()) {
         this.hydrate();
@@ -110,6 +120,7 @@ export class CartService {
 
   clear(): void {
     this.lines.set([]);
+    writeJson(STORAGE_KEY, []);
   }
 
   private changeQty(key: string, delta: number): void {

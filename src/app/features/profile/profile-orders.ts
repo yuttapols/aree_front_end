@@ -1,36 +1,31 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { finalize } from 'rxjs';
 
-import { OrderResponse } from '../../core/api/models/order.model';
+import { OrderListItem } from '../../core/api/models/order.model';
 import { OrderApi } from '../../core/api/services/order.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Crumb } from '../../shared/components/breadcrumbs/breadcrumbs';
+import { OrderHistoryRow } from '../../shared/components/order-history-row/order-history-row';
 import { CtaLink } from '../../shared/components/cta-link/cta-link';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { LoadingSkeleton } from '../../shared/components/loading-skeleton/loading-skeleton';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Panel } from '../../shared/components/panel/panel';
-import { StatusTag } from '../../shared/components/status-tag/status-tag';
-import { MoneyPipe } from '../../shared/pipes/money.pipe';
-import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
+import { formatDate, toDateKey } from '../../shared/utils/format';
 
 const PAGE_SIZE = 8;
 
 @Component({
   selector: 'app-profile-orders',
   imports: [
-    RouterLink,
+    OrderHistoryRow,
     PaginatorModule,
     CtaLink,
     EmptyState,
     LoadingSkeleton,
     PageHeader,
     Panel,
-    StatusTag,
-    MoneyPipe,
-    ThaiDatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -44,36 +39,28 @@ const PAGE_SIZE = 8;
         @if (loading() && !orders().length) {
           <app-loading-skeleton variant="list" [count]="5" />
         } @else if (orders().length) {
-          <ul class="divide-line divide-y">
-            @for (order of orders(); track order.orderNo) {
-              <li>
-                <a
-                  [routerLink]="['/profile/orders', order.orderNo]"
-                  class="hover:bg-canvas -mx-2 flex items-center gap-4 rounded-2xl px-2 py-3.5 transition"
-                >
+          <div class="flex flex-col gap-6">
+            @for (group of groups(); track group.key) {
+              <section>
+                <h3 class="mb-3 flex items-center gap-3">
                   <span
-                    class="bg-brand-soft text-brand grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
+                    class="bg-brand-soft text-brand inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold"
                   >
-                    <i [class]="order.channel === 'ONLINE' ? 'pi pi-globe' : 'pi pi-shop'"></i>
+                    <i class="pi pi-calendar text-xs"></i>{{ group.label }}
                   </span>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-ink truncate text-sm font-semibold">#{{ order.orderNo }}</p>
-                    <p class="text-ink-muted truncate text-xs">
-                      {{ order.createdAt | thaiDate: i18n.lang() : 'datetime' }} ·
-                      {{ i18n.t('member.itemCount', { n: order.items.length }) }}
-                    </p>
-                  </div>
-                  <div class="flex shrink-0 flex-col items-end gap-1">
-                    <span class="text-ink text-sm font-bold tabular-nums">{{
-                      order.totalAmount | money
-                    }}</span>
-                    <app-status-tag kind="order" [value]="order.status" />
-                  </div>
-                  <i class="pi pi-angle-right text-ink-muted"></i>
-                </a>
-              </li>
+                  <span class="text-ink-muted text-xs">{{
+                    i18n.t('profile.orders.total', { n: group.orders.length })
+                  }}</span>
+                  <span class="bg-line h-px flex-1"></span>
+                </h3>
+                <ul class="grid gap-3 xl:grid-cols-2">
+                  @for (order of group.orders; track order.orderNo) {
+                    <li><app-order-history-row [order]="order" [showDate]="false" /></li>
+                  }
+                </ul>
+              </section>
             }
-          </ul>
+          </div>
           @if (total() > pageSize) {
             <p-paginator
               styleClass="mt-3 !bg-transparent"
@@ -101,10 +88,34 @@ export class ProfileOrders {
     { labelKey: 'profile.nav.orders' },
   ];
   protected readonly pageSize = PAGE_SIZE;
-  protected readonly orders = signal<OrderResponse[]>([]);
+  protected readonly orders = signal<OrderListItem[]>([]);
   protected readonly total = signal(0);
   protected readonly page = signal(0);
   protected readonly loading = signal(false);
+
+  protected readonly groups = computed(() => {
+    const todayKey = toDateKey(new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = toDateKey(yesterday);
+    const groups: { key: string; label: string; orders: OrderListItem[] }[] = [];
+    for (const order of this.orders()) {
+      const key = toDateKey(new Date(order.createdAt));
+      let group = groups.find((candidate) => candidate.key === key);
+      if (!group) {
+        const label =
+          key === todayKey
+            ? this.i18n.t('profile.orders.today')
+            : key === yesterdayKey
+              ? this.i18n.t('profile.orders.yesterday')
+              : formatDate(order.createdAt, this.i18n.lang(), 'long');
+        group = { key, label, orders: [] };
+        groups.push(group);
+      }
+      group.orders.push(order);
+    }
+    return groups;
+  });
 
   constructor() {
     this.load(0);

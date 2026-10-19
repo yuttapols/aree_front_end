@@ -10,38 +10,34 @@ import { fallbackPalette } from '../../../core/catalog/catalog.mapper';
   selector: 'app-category-strip',
   imports: [FoodPlate],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    class:
-      'bg-canvas/85 sticky top-[4.5rem] z-30 -mx-4 block px-4 backdrop-blur-md md:mx-0 md:px-0',
-  },
+  host: { class: 'block' },
   template: `
-    <div class="flex gap-4 overflow-x-auto py-2 [scrollbar-width:none] md:gap-6">
+    <div class="-mx-1 flex gap-2.5 overflow-x-auto px-1 py-1 [scrollbar-width:none]">
       @for (category of categories(); track category.id) {
+        @let active = filter.category() === category.id;
         <button
           type="button"
-          class="group flex w-[4.5rem] shrink-0 flex-col items-center gap-2 md:w-24"
-          [attr.aria-pressed]="filter.category() === category.id"
+          class="group flex h-14 shrink-0 items-center gap-2.5 rounded-full py-1.5 pr-4 pl-1.5 transition duration-200"
+          [class]="
+            active
+              ? 'from-brand to-accent shadow-lift bg-linear-to-r text-white'
+              : 'bg-canvas text-ink hover:bg-brand-soft'
+          "
+          [attr.aria-pressed]="active"
           (click)="filter.category.set(category.id)"
         >
           <span
-            class="grid h-16 w-16 place-items-center rounded-full p-2 transition duration-200 md:h-20 md:w-20"
-            [class]="
-              filter.category() === category.id
-                ? 'bg-accent-soft ring-accent scale-105 shadow-lift ring-2'
-                : 'bg-card shadow-soft group-hover:-translate-y-1'
-            "
+            class="grid h-11 w-11 shrink-0 place-items-center rounded-full p-1 transition duration-200"
+            [class]="active ? 'bg-white/90' : 'bg-card group-hover:rotate-6'"
           >
             <app-food-plate class="h-full w-full" [palette]="category.palette" />
           </span>
+          <span class="text-sm font-bold whitespace-nowrap">{{ category.label }}</span>
           <span
-            class="text-xs md:text-sm"
-            [class]="
-              filter.category() === category.id
-                ? 'text-ink font-bold'
-                : 'text-ink-muted font-medium'
-            "
+            class="grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-xs font-bold tabular-nums"
+            [class]="active ? 'bg-white/25 text-white' : 'bg-card text-ink-muted'"
           >
-            {{ category.label }}
+            {{ category.count }}
           </span>
         </button>
       }
@@ -53,16 +49,21 @@ export class CategoryStrip {
   protected readonly filter = inject(MenuFilterService);
   private readonly catalog = inject(CatalogStore);
 
-  protected readonly categories = computed(() => [
-    {
-      id: ALL_CATEGORIES,
-      label: this.i18n.t('category.all'),
-      palette: this.catalog.items()[0]?.palette ?? fallbackPalette(0),
-    },
-    ...this.catalog.categories().map((category) => ({
-      id: category.id,
-      label: this.i18n.text(category.name),
-      palette: category.palette,
-    })),
-  ]);
+  protected readonly categories = computed(() => {
+    const items = this.catalog.items();
+    return [
+      {
+        id: ALL_CATEGORIES,
+        label: this.i18n.t('category.all'),
+        palette: items[0]?.palette ?? fallbackPalette(0),
+        count: items.length,
+      },
+      ...this.catalog.categories().map((category) => ({
+        id: category.id,
+        label: this.i18n.text(category.name),
+        palette: category.palette,
+        count: items.filter((item) => item.categoryId === category.id).length,
+      })),
+    ];
+  });
 }

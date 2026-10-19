@@ -37,10 +37,16 @@ import { SearchBar } from './components/search-bar';
     <div class="mx-auto flex max-w-6xl flex-col gap-6 px-4 pt-5 pb-16 md:gap-10 md:px-6 md:pt-8">
       <app-hero-carousel />
       <app-shop-status />
-      <section id="menu" class="flex scroll-mt-24 flex-col gap-5">
-        <app-search-bar />
+      <section id="menu" class="flex scroll-mt-24 flex-col gap-6">
+        <div
+          class="bg-card/90 border-line shadow-soft sticky top-[4.5rem] z-30 -mx-4 flex flex-col gap-3 border-y px-4 py-3 backdrop-blur-md md:mx-0 md:rounded-3xl md:border md:p-4"
+        >
+          <app-search-bar />
+          @if (catalog.loaded()) {
+            <app-category-strip />
+          }
+        </div>
         @if (catalog.loaded()) {
-          <app-category-strip />
           <app-menu-section />
         } @else {
           <app-loading-skeleton variant="card" [count]="8" />

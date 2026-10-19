@@ -9,17 +9,27 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { Avatar } from '../../../shared/components/avatar/avatar';
 import { Crumb } from '../../../shared/components/breadcrumbs/breadcrumbs';
 import { DataTable, TableColumn } from '../../../shared/components/data-table/data-table';
+import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { Panel } from '../../../shared/components/panel/panel';
 import { QuickRegisterDialog } from '../../../shared/components/quick-register-dialog/quick-register-dialog';
 import { SearchBox } from '../../../shared/components/search-box/search-box';
-import { formatDate, formatMoney, formatNumber, formatPhone } from '../../../shared/utils/format';
+import { formatDate, formatNumber, formatPhone } from '../../../shared/utils/format';
 
 const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-customers-page',
-  imports: [ButtonModule, Avatar, DataTable, PageHeader, Panel, QuickRegisterDialog, SearchBox],
+  imports: [
+    ButtonModule,
+    Avatar,
+    DataTable,
+    PageHeader,
+    Panel,
+    StatusTag,
+    QuickRegisterDialog,
+    SearchBox,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header [title]="i18n.t('bo.nav.customers')" [crumbs]="crumbs" />
@@ -57,9 +67,11 @@ const PAGE_SIZE = 10;
           <ng-template #cell let-row let-column="column">
             @if (column.key === 'nickname') {
               <span class="flex items-center gap-2">
-                <app-avatar [url]="row.avatarUrl" [name]="row.nickname" />
+                <app-avatar [url]="row.avatarUrl ?? null" [name]="row.nickname" />
                 <span class="text-ink font-semibold">{{ row.nickname }}</span>
               </span>
+            } @else if (column.key === 'status') {
+              <app-status-tag kind="userStatus" [value]="row.status" />
             }
           </ng-template>
         </app-data-table>
@@ -96,17 +108,15 @@ export class CustomersPage {
       align: 'right',
       value: (row) => formatNumber(row.pointsBalance),
     },
-    { key: 'orderCount', label: this.i18n.t('member.stat.orders'), align: 'right' },
     {
-      key: 'totalSpent',
-      label: this.i18n.t('member.stat.spent'),
-      align: 'right',
-      value: (row) => formatMoney(row.totalSpent, false),
+      key: 'status',
+      label: this.i18n.t('common.status'),
+      custom: true,
     },
     {
-      key: 'createdAt',
+      key: 'memberSince',
       label: this.i18n.t('member.joinedAt'),
-      value: (row) => formatDate(row.createdAt, this.i18n.lang()),
+      value: (row) => formatDate(row.memberSince, this.i18n.lang()),
     },
   ]);
 
@@ -132,6 +142,6 @@ export class CustomersPage {
   }
 
   protected open(customer: CustomerResponse): void {
-    this.router.navigate(['/backoffice/customers', customer.id]);
+    this.router.navigate(['/backoffice/customers', customer.userId]);
   }
 }

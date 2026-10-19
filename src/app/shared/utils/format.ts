@@ -12,12 +12,12 @@ const DATE_OPTIONS: Record<DateStyle, Intl.DateTimeFormatOptions> = {
   long: { day: 'numeric', month: 'long', year: 'numeric' },
 };
 
-export function formatNumber(value: number): string {
-  return value.toLocaleString('en-US');
+export function formatNumber(value: number | null | undefined): string {
+  return (value ?? 0).toLocaleString('en-US');
 }
 
-export function formatMoney(value: number, withDecimals = true): string {
-  return `฿${value.toLocaleString('en-US', {
+export function formatMoney(value: number | null | undefined, withDecimals = true): string {
+  return `฿${(value ?? 0).toLocaleString('en-US', {
     minimumFractionDigits: withDecimals ? 2 : 0,
     maximumFractionDigits: 2,
   })}`;

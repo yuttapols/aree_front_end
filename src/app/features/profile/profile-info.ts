@@ -1,10 +1,19 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
 import { InputTextModule } from 'primeng/inputtext';
-import { SelectModule } from 'primeng/select';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 import { finalize } from 'rxjs';
 
 import { ApiException } from '../../core/api/models/common.model';
@@ -16,9 +25,9 @@ import { Avatar } from '../../shared/components/avatar/avatar';
 import { Crumb } from '../../shared/components/breadcrumbs/breadcrumbs';
 import { FormField } from '../../shared/components/form-field/form-field';
 import { PageHeader } from '../../shared/components/page-header/page-header';
-import { Panel } from '../../shared/components/panel/panel';
+import { SaveBar } from '../../shared/components/save-bar/save-bar';
+import { SettingsSection } from '../../shared/components/settings-section/settings-section';
 import { PasswordInput } from '../../shared/components/password-input/password-input';
-import { PointsChip } from '../../shared/components/points-chip/points-chip';
 import { QrCode } from '../../shared/components/qr-code/qr-code';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
 import { formatNumber, formatPhone, fromDateKey, toDateKey } from '../../shared/utils/format';
@@ -48,13 +57,14 @@ import { TEXT_LIMITS } from '../../shared/utils/sanitize';
     ButtonModule,
     DatePickerModule,
     InputTextModule,
-    SelectModule,
+    IconFieldModule,
+    InputIconModule,
     Avatar,
     FormField,
     PageHeader,
-    Panel,
+    SaveBar,
+    SettingsSection,
     PasswordInput,
-    PointsChip,
     QrCode,
     ThaiDatePipe,
   ],
@@ -63,27 +73,35 @@ import { TEXT_LIMITS } from '../../shared/utils/sanitize';
     <app-page-header [title]="i18n.t('profile.nav.info')" [crumbs]="crumbs" />
 
     @if (auth.user(); as user) {
-      <div class="flex flex-col gap-5 px-4 py-6 md:px-8">
-        <section class="bg-card border-line shadow-soft overflow-hidden rounded-3xl border">
-          <div class="bg-royal relative h-24 overflow-hidden md:h-28">
+      <div class="flex flex-col gap-6 px-4 py-6 pb-28 md:px-8">
+        <section
+          class="bg-card border-line shadow-soft animate-rise overflow-hidden rounded-[2rem] border"
+        >
+          <div
+            class="from-brand via-brand to-accent relative h-32 overflow-hidden bg-linear-to-r md:h-40"
+          >
+            <div
+              class="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]"
+            ></div>
             <i
-              class="pi pi-star-fill pointer-events-none absolute -top-6 right-10 text-[8rem] text-white/10"
+              class="pi pi-star-fill pointer-events-none absolute -top-8 right-8 text-[9rem] text-white/15"
             ></i>
             <i
-              class="pi pi-star-fill pointer-events-none absolute right-48 -bottom-10 text-[5rem] text-white/5"
+              class="pi pi-star-fill pointer-events-none absolute right-56 -bottom-10 text-[5rem] text-white/10"
             ></i>
           </div>
-          <div class="relative flex flex-wrap items-end gap-x-5 gap-y-3 px-5 pb-5 md:px-7">
-            <div class="relative -mt-12 shrink-0">
+          <div class="relative flex flex-wrap items-end gap-x-6 gap-y-4 px-5 pb-6 md:px-8">
+            <div class="relative -mt-14 shrink-0">
               <span
-                class="ring-card block rounded-full shadow-lg ring-4 [&_.p-avatar]:!h-24 [&_.p-avatar]:!w-24 [&_.p-avatar]:!text-3xl"
+                class="ring-card block rounded-full shadow-xl ring-[6px] [&_.p-avatar]:!h-28 [&_.p-avatar]:!w-28 [&_.p-avatar]:!text-4xl"
               >
                 <app-avatar [url]="user.avatarUrl" [name]="user.nickname" size="xlarge" />
               </span>
               <button
                 type="button"
-                class="bg-accent ring-card absolute right-0 bottom-0 grid h-9 w-9 place-items-center rounded-full text-white shadow-md ring-4 transition hover:scale-105 active:scale-95"
+                class="bg-accent ring-card absolute right-0 bottom-1 grid h-10 w-10 place-items-center rounded-full text-white shadow-md ring-4 transition hover:scale-110 active:scale-95"
                 [attr.aria-label]="i18n.t('profile.changeAvatar')"
+                [title]="i18n.t('profile.changeAvatar')"
                 [disabled]="uploading()"
                 (click)="avatarInput.click()"
               >
@@ -100,138 +118,161 @@ import { TEXT_LIMITS } from '../../shared/utils/sanitize';
                 (change)="uploadAvatar($event)"
               />
             </div>
-            <div class="min-w-0 flex-1 pt-3 pb-1">
-              <h2 class="font-display text-ink truncate text-2xl font-bold">{{ user.nickname }}</h2>
-              <p class="text-ink-muted text-sm">
-                {{ user.memberCode }} · {{ i18n.t('member.joinedAt') }}
-                {{ user.createdAt | thaiDate: i18n.lang() : 'date' }}
-              </p>
+            <div class="min-w-0 flex-1 pb-1">
+              <h2 class="font-display text-ink truncate text-3xl font-bold">{{ user.nickname }}</h2>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                @if (user.memberCode) {
+                  <span
+                    class="bg-brand-soft text-brand inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wide"
+                  >
+                    <i class="pi pi-id-card text-[0.7rem]"></i>{{ user.memberCode }}
+                  </span>
+                }
+                <span
+                  class="bg-card-muted text-ink-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                >
+                  <i class="pi pi-phone text-[0.7rem]"></i>{{ phone(user.phone) }}
+                </span>
+                @if (user.createdAt) {
+                  <span
+                    class="bg-card-muted text-ink-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                  >
+                    <i class="pi pi-calendar text-[0.7rem]"></i>{{ i18n.t('member.joinedAt') }}
+                    {{ user.createdAt | thaiDate: i18n.lang() : 'date' }}
+                  </span>
+                }
+              </div>
             </div>
             @if (auth.isCustomer()) {
-              <div class="flex flex-wrap items-center gap-2 pb-1">
-                <app-points-chip [points]="user.pointsBalance" />
-                <span
-                  class="bg-card-muted text-ink-muted rounded-full px-2.5 py-1 text-xs font-semibold"
-                >
-                  {{ i18n.t('points.lifetime') }} {{ format(user.lifetimePoints) }}
+              <div
+                class="from-accent/15 to-brand/10 flex items-center gap-3 rounded-2xl bg-linear-to-br px-5 py-3"
+              >
+                <span class="bg-accent grid h-11 w-11 place-items-center rounded-xl text-white">
+                  <i class="pi pi-star-fill"></i>
                 </span>
+                <div>
+                  <p class="text-ink-muted text-xs font-semibold">{{ i18n.t('member.points') }}</p>
+                  <p
+                    class="font-display text-accent text-3xl leading-none font-extrabold tabular-nums"
+                  >
+                    {{ format(user.pointsBalance) }}
+                  </p>
+                </div>
               </div>
             }
           </div>
         </section>
 
-        <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div class="flex flex-col gap-5">
-            <app-panel
+        <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div class="flex flex-col gap-6">
+            <app-settings-section
+              icon="pi pi-user"
               [heading]="i18n.t('profile.info.heading')"
-              [subtitle]="i18n.t('profile.info.subtitle')"
+              [description]="i18n.t('profile.info.subtitle')"
             >
-              <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
-                <div class="grid gap-x-5 gap-y-4 sm:grid-cols-2">
-                  <app-form-field
-                    inputId="profile-nickname"
-                    [label]="i18n.t('register.name') + ' *'"
-                    [error]="profileError('nickname')"
-                  >
+              <form
+                [formGroup]="profileForm"
+                (ngSubmit)="saveProfile()"
+                novalidate
+                class="grid gap-x-5 gap-y-5 sm:grid-cols-2"
+              >
+                <app-form-field
+                  inputId="profile-nickname"
+                  [label]="i18n.t('register.name') + ' *'"
+                  [error]="profileError('nickname')"
+                >
+                  <p-iconfield>
+                    <p-inputicon class="pi pi-user text-brand" />
                     <input
                       pInputText
                       id="profile-nickname"
                       formControlName="nickname"
-                      class="rounded-xl"
+                      class="h-12 rounded-xl"
                       [fluid]="true"
                       [invalid]="!!profileError('nickname')"
                     />
-                  </app-form-field>
-                  <app-form-field
-                    inputId="profile-phone"
-                    [label]="i18n.t('register.phone')"
-                    [hint]="i18n.t('profile.phoneLocked')"
-                  >
+                  </p-iconfield>
+                </app-form-field>
+                <app-form-field
+                  inputId="profile-phone"
+                  [label]="i18n.t('register.phone')"
+                  [hint]="i18n.t('profile.phoneLocked')"
+                >
+                  <p-iconfield>
+                    <p-inputicon class="pi pi-lock text-ink-muted" />
                     <input
                       pInputText
                       id="profile-phone"
-                      class="rounded-xl"
+                      class="h-12 rounded-xl"
                       [fluid]="true"
                       [value]="phone(user.phone)"
                       [disabled]="true"
                     />
-                  </app-form-field>
-                  <app-form-field inputId="profile-first" [label]="i18n.t('profile.firstName')">
-                    <input
-                      pInputText
-                      id="profile-first"
-                      formControlName="firstName"
-                      class="rounded-xl"
-                      [fluid]="true"
-                    />
-                  </app-form-field>
-                  <app-form-field inputId="profile-last" [label]="i18n.t('profile.lastName')">
-                    <input
-                      pInputText
-                      id="profile-last"
-                      formControlName="lastName"
-                      class="rounded-xl"
-                      [fluid]="true"
-                    />
-                  </app-form-field>
-                  <app-form-field
-                    class="sm:col-span-2"
-                    inputId="profile-email"
-                    [label]="i18n.t('profile.email')"
-                    [error]="profileError('email')"
-                  >
+                  </p-iconfield>
+                </app-form-field>
+                <app-form-field
+                  class="sm:col-span-2"
+                  inputId="profile-email"
+                  [label]="i18n.t('profile.email')"
+                  [error]="profileError('email')"
+                >
+                  <p-iconfield>
+                    <p-inputicon class="pi pi-envelope text-brand" />
                     <input
                       pInputText
                       id="profile-email"
                       type="email"
                       formControlName="email"
-                      class="rounded-xl"
+                      class="h-12 rounded-xl"
                       [fluid]="true"
                       placeholder="you@example.com"
                       [invalid]="!!profileError('email')"
                     />
-                  </app-form-field>
-                  <app-form-field inputId="profile-birth" [label]="i18n.t('profile.birthDate')">
-                    <p-datepicker
-                      inputId="profile-birth"
-                      formControlName="birthDate"
-                      dateFormat="dd/mm/yy"
-                      [showIcon]="true"
-                      [fluid]="true"
-                      [maxDate]="today"
-                    />
-                  </app-form-field>
-                  <app-form-field inputId="profile-gender" [label]="i18n.t('profile.gender')">
-                    <p-select
-                      inputId="profile-gender"
-                      formControlName="gender"
-                      [options]="genders()"
-                      optionLabel="label"
-                      optionValue="value"
-                      [showClear]="true"
-                      [fluid]="true"
-                      [placeholder]="i18n.t('common.select')"
-                    />
-                  </app-form-field>
-                </div>
-                <div class="border-line mt-6 flex justify-end border-t pt-5">
-                  <p-button
-                    type="submit"
-                    [label]="i18n.t('common.save')"
-                    icon="pi pi-check"
-                    [rounded]="true"
-                    [loading]="savingProfile()"
+                  </p-iconfield>
+                </app-form-field>
+                <app-form-field inputId="profile-birth" [label]="i18n.t('profile.birthDate')">
+                  <p-datepicker
+                    inputId="profile-birth"
+                    formControlName="birthDate"
+                    dateFormat="dd/mm/yy"
+                    inputStyleClass="!h-12"
+                    styleClass="h-12"
+                    [showIcon]="true"
+                    [fluid]="true"
+                    [maxDate]="today"
                   />
+                </app-form-field>
+                <div class="flex flex-col gap-1.5">
+                  <span class="text-ink text-sm font-semibold">{{ i18n.t('profile.gender') }}</span>
+                  <div class="grid grid-cols-3 gap-2" role="radiogroup">
+                    @for (option of genders(); track option.value) {
+                      <button
+                        type="button"
+                        role="radio"
+                        class="flex h-12 items-center justify-center gap-2 rounded-xl border-2 text-sm font-semibold transition"
+                        [class]="
+                          profileForm.controls.gender.value === option.value
+                            ? 'border-brand bg-brand-soft text-brand'
+                            : 'border-line bg-card text-ink hover:border-brand/40'
+                        "
+                        [attr.aria-checked]="profileForm.controls.gender.value === option.value"
+                        (click)="toggleGender(option.value)"
+                      >
+                        <i [class]="option.icon"></i>{{ option.label }}
+                      </button>
+                    }
+                  </div>
                 </div>
               </form>
-            </app-panel>
+            </app-settings-section>
 
-            <app-panel
+            <app-settings-section
+              icon="pi pi-shield"
               [heading]="i18n.t('profile.password.heading')"
-              [subtitle]="i18n.t('profile.password.subtitle')"
+              [description]="i18n.t('profile.password.subtitle')"
             >
               <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" novalidate>
-                <div class="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                <div class="grid gap-x-5 gap-y-5 sm:grid-cols-2">
                   <app-form-field
                     class="sm:col-span-2"
                     inputId="password-current"
@@ -270,67 +311,77 @@ import { TEXT_LIMITS } from '../../shared/utils/sanitize';
                     />
                   </app-form-field>
                 </div>
-                <div class="border-line mt-6 flex justify-end border-t pt-5">
+                <div
+                  class="bg-canvas mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"
+                >
+                  <p class="text-ink-muted flex items-center gap-2 text-xs">
+                    <i class="pi pi-info-circle text-brand"></i
+                    >{{ i18n.t('profile.password.subtitle') }}
+                  </p>
                   <p-button
                     type="submit"
                     [label]="i18n.t('profile.password.submit')"
                     icon="pi pi-lock"
                     [rounded]="true"
-                    [outlined]="true"
                     [loading]="savingPassword()"
                   />
                 </div>
               </form>
-            </app-panel>
+            </app-settings-section>
           </div>
 
-          <aside
-            class="bg-royal relative overflow-hidden rounded-3xl p-5 text-white shadow-[0_24px_48px_-24px_rgb(58_20_102/0.7)] lg:sticky lg:top-24"
-          >
-            <i
-              class="pi pi-star-fill pointer-events-none absolute -top-8 -right-8 text-[9rem] text-white/10"
-            ></i>
-            <div class="relative flex items-center justify-between">
-              <span class="flex items-center gap-2">
-                <span class="bg-accent grid h-8 w-8 place-items-center rounded-xl">
-                  <i class="pi pi-star-fill text-xs"></i>
+          <aside class="flex flex-col gap-4 lg:sticky lg:top-24">
+            <div
+              class="bg-royal relative overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_24px_48px_-24px_rgb(58_20_102/0.7)]"
+            >
+              <i
+                class="pi pi-star-fill pointer-events-none absolute -top-8 -right-8 text-[9rem] text-white/10"
+              ></i>
+              <div class="relative flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                  <span class="bg-accent grid h-8 w-8 place-items-center rounded-xl">
+                    <i class="pi pi-star-fill text-xs"></i>
+                  </span>
+                  <span class="font-display font-bold">{{ i18n.t('brand.name') }}</span>
                 </span>
-                <span class="font-display font-bold">{{ i18n.t('brand.name') }}</span>
-              </span>
-              <span class="text-[0.65rem] font-bold tracking-[0.2em] text-white/70 uppercase">
-                {{ i18n.t('profile.memberCard') }}
-              </span>
-            </div>
-            @if (user.memberCode) {
-              <div class="relative mx-auto mt-5 w-fit rounded-2xl bg-white p-2 shadow-lg">
-                <app-qr-code [value]="user.memberCode" [size]="160" [label]="user.memberCode" />
+                <span class="text-[0.65rem] font-bold tracking-[0.2em] text-white/70 uppercase">
+                  {{ i18n.t('profile.memberCard') }}
+                </span>
               </div>
-              <p
-                class="font-display relative mt-4 text-center text-2xl font-bold tracking-[0.18em]"
-              >
-                {{ user.memberCode }}
-              </p>
-              <p class="relative mt-1 text-center text-xs text-white/70">
-                {{ i18n.t('profile.showQr') }}
-              </p>
-            }
-            <div class="relative mt-5 grid grid-cols-2 gap-2">
-              <div class="rounded-2xl bg-white/10 px-3 py-2.5">
-                <p class="text-[0.65rem] text-white/70">{{ i18n.t('member.points') }}</p>
-                <p class="font-display text-accent text-xl font-extrabold">
-                  {{ format(user.pointsBalance) }}
+              @if (user.memberCode) {
+                <div class="relative mx-auto mt-6 w-fit rounded-3xl bg-white p-3 shadow-xl">
+                  <app-qr-code [value]="user.memberCode" [size]="168" [label]="user.memberCode" />
+                </div>
+                <p
+                  class="font-display relative mt-5 text-center text-2xl font-bold tracking-[0.18em]"
+                >
+                  {{ user.memberCode }}
                 </p>
-              </div>
-              <div class="rounded-2xl bg-white/10 px-3 py-2.5">
-                <p class="text-[0.65rem] text-white/70">{{ i18n.t('member.joinedAt') }}</p>
-                <p class="text-sm font-semibold">
-                  {{ user.createdAt | thaiDate: i18n.lang() : 'date' }}
+                <p class="relative mt-1 text-center text-xs text-white/70">
+                  {{ i18n.t('profile.showQr') }}
+                </p>
+              }
+              <div
+                class="relative mt-5 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-4 py-3"
+              >
+                <p class="flex items-center gap-1.5 text-xs text-white/70">
+                  <i class="pi pi-star-fill text-accent"></i>{{ i18n.t('member.points') }}
+                </p>
+                <p class="font-display text-accent text-2xl font-extrabold tabular-nums">
+                  {{ format(user.pointsBalance) }}
                 </p>
               </div>
             </div>
           </aside>
         </div>
       </div>
+
+      <app-save-bar
+        [visible]="profileDirty()"
+        [saving]="savingProfile()"
+        (save)="saveProfile()"
+        (discard)="resetProfile()"
+      />
     }
   `,
 })
@@ -354,12 +405,11 @@ export class ProfileInfo {
   protected readonly savingProfile = signal(false);
   protected readonly savingPassword = signal(false);
   protected readonly profileSubmitted = signal(false);
+  protected readonly profileDirty = signal(false);
   protected readonly passwordSubmitted = signal(false);
 
   protected readonly profileForm = this.fb.group({
     nickname: this.fb.nonNullable.control('', textField(TEXT_LIMITS.nickname, true)),
-    firstName: this.fb.control<string | null>(null, textField(TEXT_LIMITS.personName)),
-    lastName: this.fb.control<string | null>(null, textField(TEXT_LIMITS.personName)),
     email: this.fb.control<string | null>(null, [
       Validators.maxLength(TEXT_LIMITS.email),
       optionalEmail,
@@ -385,12 +435,33 @@ export class ProfileInfo {
     { validators: matchField('newPassword', 'confirmPassword') },
   );
 
-  protected genders() {
+  protected genders(): { label: string; value: Gender; icon: string }[] {
     return [
-      { label: this.i18n.t('profile.gender.MALE'), value: 'MALE' },
-      { label: this.i18n.t('profile.gender.FEMALE'), value: 'FEMALE' },
-      { label: this.i18n.t('profile.gender.OTHER'), value: 'OTHER' },
+      { label: this.i18n.t('profile.gender.MALE'), value: 'MALE', icon: 'pi pi-mars' },
+      { label: this.i18n.t('profile.gender.FEMALE'), value: 'FEMALE', icon: 'pi pi-venus' },
+      { label: this.i18n.t('profile.gender.OTHER'), value: 'OTHER', icon: 'pi pi-circle' },
     ];
+  }
+
+  protected toggleGender(value: Gender): void {
+    const control = this.profileForm.controls.gender;
+    control.setValue(control.value === value ? null : value);
+    control.markAsDirty();
+  }
+
+  protected resetProfile(): void {
+    const user = this.auth.user();
+    if (!user) {
+      return;
+    }
+    this.profileForm.reset({
+      nickname: user.nickname,
+      email: user.email,
+      birthDate: fromDateKey(user.birthDate),
+      gender: user.gender,
+    });
+    this.profileSubmitted.set(false);
+    this.profileDirty.set(false);
   }
 
   constructor() {
@@ -399,16 +470,12 @@ export class ProfileInfo {
       const user = this.auth.user();
       if (user && !filled) {
         filled = true;
-        this.profileForm.reset({
-          nickname: user.nickname,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          birthDate: fromDateKey(user.birthDate),
-          gender: user.gender,
-        });
+        untracked(() => this.resetProfile());
       }
     });
+    this.profileForm.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.profileDirty.set(this.profileForm.dirty));
   }
 
   protected profileError(field: 'nickname' | 'email'): string | null {
@@ -474,8 +541,8 @@ export class ProfileInfo {
     this.api
       .updateProfile({
         nickname: value.nickname.trim(),
-        firstName: value.firstName,
-        lastName: value.lastName,
+        firstName: this.auth.user()?.firstName ?? null,
+        lastName: this.auth.user()?.lastName ?? null,
         email: value.email,
         birthDate: value.birthDate ? toDateKey(value.birthDate) : null,
         gender: value.gender,
@@ -483,6 +550,8 @@ export class ProfileInfo {
       .pipe(finalize(() => this.savingProfile.set(false)))
       .subscribe((user) => {
         this.auth.setUser(user);
+        this.profileForm.markAsPristine();
+        this.profileDirty.set(false);
         this.messages.add({ severity: 'success', summary: this.i18n.t('common.saved') });
       });
   }

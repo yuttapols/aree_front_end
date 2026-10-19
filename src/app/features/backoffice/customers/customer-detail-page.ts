@@ -64,7 +64,7 @@ const PAGE_SIZE = 8;
         <div
           class="bg-card border-line shadow-soft flex flex-wrap items-center gap-4 rounded-3xl border p-5"
         >
-          <app-avatar [url]="current.avatarUrl" [name]="current.nickname" size="xlarge" />
+          <app-avatar [url]="current.avatarUrl ?? null" [name]="current.nickname" size="xlarge" />
           <div class="min-w-0 flex-1">
             <h2 class="font-display text-ink text-2xl font-bold">{{ current.nickname }}</h2>
             <p class="text-ink-muted text-sm">
@@ -74,7 +74,7 @@ const PAGE_SIZE = 8;
               }
             </p>
             <p class="text-ink-muted text-xs">
-              {{ i18n.t('member.joinedAt') }} {{ date(current.createdAt) }}
+              {{ i18n.t('member.joinedAt') }} {{ date(current.memberSince) }}
             </p>
           </div>
           <app-status-tag kind="userStatus" [value]="current.status" />
@@ -96,22 +96,28 @@ const PAGE_SIZE = 8;
             [label]="i18n.t('points.balance')"
             [value]="format(current.pointsBalance)"
           />
-          <app-stat-card
-            icon="pi pi-chart-line"
-            [label]="i18n.t('points.lifetime')"
-            [value]="format(current.lifetimePoints)"
-          />
-          <app-stat-card
-            icon="pi pi-receipt"
-            [label]="i18n.t('member.stat.orders')"
-            [value]="format(current.orderCount)"
-          />
-          <app-stat-card
-            icon="pi pi-wallet"
-            tone="accent"
-            [label]="i18n.t('member.stat.spent')"
-            [value]="money(current.totalSpent)"
-          />
+          @if (current.lifetimePoints != null) {
+            <app-stat-card
+              icon="pi pi-chart-line"
+              [label]="i18n.t('points.lifetime')"
+              [value]="format(current.lifetimePoints)"
+            />
+          }
+          @if (current.orderCount != null) {
+            <app-stat-card
+              icon="pi pi-receipt"
+              [label]="i18n.t('member.stat.orders')"
+              [value]="format(current.orderCount)"
+            />
+          }
+          @if (current.totalSpent != null) {
+            <app-stat-card
+              icon="pi pi-wallet"
+              tone="accent"
+              [label]="i18n.t('member.stat.spent')"
+              [value]="money(current.totalSpent)"
+            />
+          }
         </div>
 
         <div class="grid gap-5 xl:grid-cols-2">
@@ -292,7 +298,7 @@ export class CustomerDetailPage {
     });
   }
 
-  protected date(value: string): string {
+  protected date(value: string | null): string {
     return formatDate(value, this.i18n.lang());
   }
 

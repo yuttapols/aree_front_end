@@ -241,6 +241,11 @@ export class Navbar {
           icon: 'pi pi-id-card',
           routerLink: '/profile/info',
         },
+        {
+          label: this.i18n.t('member.myOrders'),
+          icon: 'pi pi-receipt',
+          routerLink: '/profile/orders',
+        },
         { separator: true },
         contextual,
       ];

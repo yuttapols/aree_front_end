@@ -12,14 +12,13 @@ export interface PaymentMethodResponse {
   code: PaymentMethodCode;
   name: string;
   nameEn: string;
-  requiresSlip: boolean;
   requiresReference: boolean;
   allowOnline: boolean;
   active: boolean;
   sortOrder: number;
   instruction: string;
   icon: string | null;
-  promptpayId: string | null;
+  promptPayId: string | null;
   bankAccount: string | null;
 }
 
@@ -27,7 +26,6 @@ export interface PaymentMethodUpsertRequest {
   code: string;
   name: string;
   nameEn: string;
-  requiresSlip: boolean;
   requiresReference: boolean;
   allowOnline: boolean;
   active: boolean;
@@ -96,13 +94,14 @@ export interface QuoteResponse {
   promotionDiscount: number;
   pointDiscount: number;
   totalAmount: number;
+  total?: number;
   pointsRedeemed: number;
   pointsToEarn: number;
   appliedPromotions: AppliedPromotion[];
-  promoCodeError: string | null;
-  pointsBalance: number | null;
-  maxRedeemablePoints: number;
-  redeemMinPoints: number;
+  promoCodeError?: string | null;
+  pointsBalance?: number | null;
+  maxRedeemablePoints?: number | null;
+  redeemMinPoints?: number | null;
   redeemPointsPerBaht: number;
   customerName: string | null;
 }
@@ -138,6 +137,20 @@ export interface OrderCustomerRef {
   id: number;
   nickname: string;
   memberCode?: string | null;
+}
+
+export interface OrderListItem {
+  id: number;
+  orderNo: string;
+  channel: OrderChannel;
+  status: OrderStatus;
+  queueNo: number;
+  customerName: string | null;
+  member: boolean;
+  totalAmount: number;
+  remainingAmount: number;
+  createdAt: string;
+  payLater: boolean;
 }
 
 export interface OrderResponse {

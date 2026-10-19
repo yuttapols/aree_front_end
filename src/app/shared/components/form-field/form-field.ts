@@ -1,11 +1,18 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+
+const REQUIRED_MARK = ' *';
 
 @Component({
   selector: 'app-form-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-1.5' },
   template: `
-    <label [for]="inputId()" class="text-ink text-sm font-semibold">{{ label() }}</label>
+    <label [for]="inputId()" class="text-ink text-sm font-semibold"
+      >{{ text() }}
+      @if (required()) {
+        <span class="text-red-500" aria-hidden="true"> *</span>
+      }
+    </label>
     <ng-content />
     @if (error()) {
       <small
@@ -26,4 +33,9 @@ export class FormField {
   readonly inputId = input.required<string>();
   readonly error = input<string | null>(null);
   readonly hint = input<string | null>(null);
+
+  protected readonly required = computed(() => this.label().endsWith(REQUIRED_MARK));
+  protected readonly text = computed(() =>
+    this.required() ? this.label().slice(0, -REQUIRED_MARK.length) : this.label(),
+  );
 }

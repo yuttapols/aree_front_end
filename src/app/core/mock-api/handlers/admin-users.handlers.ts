@@ -319,7 +319,6 @@ export function registerAdminUserHandlers(router: MockRouter): void {
       Object.assign(method, {
         name: request.name,
         nameEn: request.nameEn || request.name,
-        requiresSlip: request.requiresSlip,
         requiresReference: request.requiresReference,
         allowOnline: request.allowOnline,
         active: request.active,

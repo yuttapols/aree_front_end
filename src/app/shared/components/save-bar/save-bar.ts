@@ -7,12 +7,12 @@ import { I18nService } from '../../../core/i18n/i18n.service';
   selector: 'app-save-bar',
   imports: [ButtonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sticky bottom-4 z-30 block' },
+  host: { class: 'pointer-events-none fixed inset-x-0 bottom-6 z-40 block px-4' },
   template: `
     @if (visible()) {
       <div
         role="status"
-        class="bg-royal animate-pop mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-full py-2.5 pr-2.5 pl-5 text-white shadow-[0_18px_40px_-12px_rgb(58_20_102/0.6)]"
+        class="bg-royal animate-pop pointer-events-auto mx-auto flex max-w-3xl flex-wrap items-center gap-3 rounded-full py-2.5 pr-2.5 pl-5 text-white shadow-[0_18px_40px_-12px_rgb(58_20_102/0.6)]"
       >
         <span
           class="bg-accent h-2.5 w-2.5 shrink-0 animate-pulse rounded-full"

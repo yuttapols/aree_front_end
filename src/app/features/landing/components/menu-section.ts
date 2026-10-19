@@ -27,15 +27,33 @@ import { MenuCard } from './menu-card';
       @for (item of filter.items(); track item.id) {
         <app-menu-card [item]="item" />
       } @empty {
-        <div class="col-span-full py-12 text-center">
-          <span
-            class="bg-brand-soft text-brand mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full"
-          >
-            <i [class]="filter.catalogEmpty() ? 'pi pi-inbox' : 'pi pi-search'" class="text-xl"></i>
+        <div
+          class="bg-card border-line col-span-full flex flex-col items-center rounded-3xl border border-dashed px-6 py-14 text-center"
+        >
+          <span class="relative mb-5">
+            <span
+              class="bg-brand-soft animate-float grid h-24 w-24 place-items-center rounded-full"
+            >
+              <i
+                class="text-brand text-4xl"
+                [class]="filter.catalogEmpty() ? 'pi pi-inbox' : 'pi pi-search'"
+              ></i>
+            </span>
+            <i class="pi pi-star-fill text-accent absolute -top-1 -right-2 text-lg"></i>
           </span>
-          <p class="text-ink-muted">
+          <p class="font-display text-ink text-xl font-bold">
             {{ i18n.t(filter.catalogEmpty() ? 'menu.emptyCatalog' : 'menu.empty') }}
           </p>
+          @if (!filter.catalogEmpty()) {
+            <p class="text-ink-muted mt-1 text-sm">{{ i18n.t('menu.emptyHint') }}</p>
+            <button
+              type="button"
+              class="from-brand to-accent shadow-lift mt-6 inline-flex items-center gap-2 rounded-full bg-linear-to-r px-6 py-3 font-bold text-white transition hover:brightness-110 active:scale-95"
+              (click)="filter.reset()"
+            >
+              <i class="pi pi-th-large"></i>{{ i18n.t('menu.viewAll') }}
+            </button>
+          }
         </div>
       }
     </div>

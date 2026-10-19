@@ -20,13 +20,12 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Crumb } from '../../shared/components/breadcrumbs/breadcrumbs';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
-import { ImageUpload } from '../../shared/components/image-upload/image-upload';
 import { LoadingSkeleton } from '../../shared/components/loading-skeleton/loading-skeleton';
 import { OrderSummary } from '../../shared/components/order-summary/order-summary';
 import { OrderTimeline } from '../../shared/components/order-timeline/order-timeline';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { Panel } from '../../shared/components/panel/panel';
-import { PaymentMethodPicker } from '../../shared/components/payment-method-picker/payment-method-picker';
+import { MoneyPipe } from '../../shared/pipes/money.pipe';
 import { StatusTag } from '../../shared/components/status-tag/status-tag';
 import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
 import { OrderLinesService } from '../../shared/services/order-lines.service';
@@ -41,13 +40,12 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
     RouterLink,
     ButtonModule,
     EmptyState,
-    ImageUpload,
     LoadingSkeleton,
     OrderSummary,
     OrderTimeline,
     PageHeader,
     Panel,
-    PaymentMethodPicker,
+    MoneyPipe,
     StatusTag,
     ThaiDatePipe,
   ],
@@ -124,57 +122,34 @@ const FINAL_STATUSES = ['COMPLETED', 'CANCELLED'];
               }
             </section>
 
-            @if (current.status === 'PENDING_PAYMENT') {
+            @if (current.remainingAmount > 0 && current.status !== 'CANCELLED') {
               <app-panel [heading]="i18n.t('track.payment')">
-                @if (latestPayment(); as payment) {
-                  <div
-                    class="mb-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
-                    [class]="payment.status === 'REJECTED' ? 'bg-red-500/10' : 'bg-accent-soft'"
+                <div class="bg-canvas flex items-center gap-4 rounded-2xl p-4">
+                  <span
+                    class="bg-brand text-on-brand grid h-12 w-12 shrink-0 place-items-center rounded-xl text-lg"
                   >
-                    <div class="text-sm">
-                      <p class="text-ink font-semibold">
-                        {{ i18n.pick(payment.methodName, payment.methodNameEn) }}
-                      </p>
-                      @if (payment.status === 'REJECTED') {
-                        <p class="text-xs text-red-500">
-                          {{
-                            i18n.t('track.slipRejected', { reason: payment.rejectReason ?? '-' })
-                          }}
-                        </p>
-                      } @else {
-                        <p class="text-ink-muted text-xs">{{ i18n.t('track.slipWaiting') }}</p>
-                      }
-                    </div>
-                    <app-status-tag kind="payment" [value]="payment.status" />
+                    <i [class]="chosenMethod()?.icon || 'pi pi-wallet'"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-ink-muted text-xs">{{ i18n.t('track.paidWith') }}</p>
+                    <p class="text-ink text-lg font-bold">
+                      {{
+                        chosenMethod()
+                          ? i18n.name(chosenMethod()!)
+                          : i18n.t('track.payAtCounterShort')
+                      }}
+                    </p>
                   </div>
-                }
-                @if (!hasPendingSlip()) {
-                  <app-payment-method-picker
-                    [methods]="methods()"
-                    [amount]="current.remainingAmount"
-                    [(selected)]="method"
-                  />
-                  @if (methodRequiresSlip()) {
-                    <div class="border-line mt-4 flex flex-col gap-3 border-t pt-4">
-                      <app-image-upload
-                        mode="inline"
-                        [url]="slip()"
-                        (urlChange)="onSlipUrlChange($event)"
-                        (fileChange)="slipFile.set($event)"
-                      />
-                      <p-button
-                        [label]="i18n.t('track.sendSlip')"
-                        icon="pi pi-send"
-                        [rounded]="true"
-                        [disabled]="!slip()"
-                        [loading]="sending()"
-                        (onClick)="sendSlip(current)"
-                      />
-                    </div>
-                  } @else {
-                    <p class="text-ink-muted mt-3 text-sm">{{ i18n.t('track.payAtCounter') }}</p>
-                  }
-                }
+                  <div class="text-right">
+                    <p class="text-ink-muted text-xs">{{ i18n.t('track.amountDue') }}</p>
+                    <p class="font-display text-ink text-xl font-bold tabular-nums">
+                      {{ current.remainingAmount | money }}
+                    </p>
+                  </div>
+                </div>
+                <p class="text-ink-muted mt-3 flex items-center gap-2 text-sm">
+                  <i class="pi pi-info-circle text-brand"></i>{{ i18n.t('track.payAtCounter') }}
+                </p>
               </app-panel>
             }
 
@@ -249,10 +224,6 @@ export class TrackOrderPage {
 
   protected readonly order = signal<OrderResponse | null>(null);
   protected readonly notFound = signal(false);
-  protected readonly sending = signal(false);
-  protected readonly slip = signal<string | null>(null);
-  protected readonly slipFile = signal<File | null>(null);
-  protected readonly method = signal<string | null>(null);
 
   protected readonly methods = toSignal(
     this.orderApi.paymentMethods('ONLINE').pipe(catchError(() => of([]))),
@@ -263,9 +234,11 @@ export class TrackOrderPage {
 
   protected readonly latestPayment = computed(() => this.order()?.payments.at(-1) ?? null);
   protected readonly hasPendingSlip = computed(() => this.latestPayment()?.status === 'PENDING');
-  protected readonly methodRequiresSlip = computed(
-    () => this.methods().find((method) => method.code === this.method())?.requiresSlip ?? false,
-  );
+  protected readonly chosenMethod = computed(() => {
+    const order = this.order();
+    const code = order?.paymentMethodCode ?? this.latestPayment()?.methodCode ?? null;
+    return code ? (this.methods().find((method) => method.code === code) ?? null) : null;
+  });
 
   protected readonly statusHint = computed(() => {
     const order = this.order();
@@ -283,12 +256,6 @@ export class TrackOrderPage {
       const token = this.token();
       this.load(token, false);
     });
-    effect(() => {
-      const order = this.order();
-      if (order && !this.method()) {
-        this.method.set(order.paymentMethodCode ?? this.methods()[0]?.code ?? null);
-      }
-    });
     const timer = setInterval(() => {
       const order = this.order();
       if (order && !FINAL_STATUSES.includes(order.status)) {
@@ -301,35 +268,6 @@ export class TrackOrderPage {
   protected copyLink(): void {
     navigator.clipboard?.writeText(window.location.href.split('?')[0] ?? '').catch(() => undefined);
     this.messages.add({ severity: 'success', summary: this.i18n.t('track.linkCopied') });
-  }
-
-  protected onSlipUrlChange(url: string | null): void {
-    this.slip.set(url);
-    if (!url) {
-      this.slipFile.set(null);
-    }
-  }
-
-  protected sendSlip(order: OrderResponse): void {
-    const slip = this.slipFile();
-    const method = this.method();
-    if (!slip || !method) {
-      return;
-    }
-    this.sending.set(true);
-    this.orderApi
-      .attachSlip(order.trackingToken, {
-        methodCode: method,
-        amount: order.remainingAmount,
-        slip,
-      })
-      .pipe(finalize(() => this.sending.set(false)))
-      .subscribe(() => {
-        this.slip.set(null);
-        this.slipFile.set(null);
-        this.messages.add({ severity: 'success', summary: this.i18n.t('track.slipSent') });
-        this.load(order.trackingToken, true);
-      });
   }
 
   private load(token: string, background: boolean): void {

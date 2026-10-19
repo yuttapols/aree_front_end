@@ -12,6 +12,8 @@ interface TimelineStep {
   at: string | null;
   done: boolean;
   danger?: boolean;
+  current?: boolean;
+  success?: boolean;
 }
 
 @Component({
@@ -22,22 +24,42 @@ interface TimelineStep {
   template: `
     <p-timeline [value]="steps()" [align]="'left'">
       <ng-template #marker let-step>
-        <span
-          class="grid h-8 w-8 place-items-center rounded-full"
-          [class]="
-            step.danger
-              ? 'bg-red-500 text-white'
-              : step.done
-                ? 'bg-brand text-on-brand'
-                : 'bg-card-muted text-ink-muted'
-          "
-        >
-          <i [class]="step.icon" class="text-xs"></i>
+        <span class="relative grid h-8 w-8 place-items-center">
+          @if (step.current) {
+            <span class="bg-brand absolute inset-0 animate-ping rounded-full opacity-40"></span>
+          }
+          <span
+            class="relative grid h-8 w-8 place-items-center rounded-full transition-colors"
+            [class]="
+              step.danger
+                ? 'bg-red-500 text-white'
+                : step.success
+                  ? 'animate-pop bg-emerald-500 text-white'
+                  : step.done
+                    ? 'bg-brand text-on-brand'
+                    : 'bg-card-muted text-ink-muted'
+            "
+            [class.ring-4]="step.current"
+            [class.ring-brand-soft]="step.current"
+          >
+            <i [class]="step.success ? 'pi pi-check' : step.icon" class="text-xs"></i>
+          </span>
         </span>
       </ng-template>
       <ng-template #content let-step>
         <div class="pb-4">
-          <p class="text-sm font-semibold" [class]="step.done ? 'text-ink' : 'text-ink-muted'">
+          <p
+            class="text-sm font-semibold"
+            [class]="
+              step.success
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : step.current
+                  ? 'text-brand'
+                  : step.done
+                    ? 'text-ink'
+                    : 'text-ink-muted'
+            "
+          >
             {{ i18n.t(step.key) }}
           </p>
           @if (step.at) {
@@ -54,6 +76,19 @@ export class OrderTimeline {
   readonly order = input.required<OrderResponse>();
 
   protected readonly steps = computed<TimelineStep[]>(() => {
+    const steps = this.baseSteps();
+    if (this.order().status === 'COMPLETED') {
+      return steps.map((step, index) =>
+        index === steps.length - 1 ? { ...step, success: true } : step,
+      );
+    }
+    const currentIndex = steps.map((step) => step.done).lastIndexOf(true);
+    return steps.map((step, index) =>
+      index === currentIndex && !step.danger ? { ...step, current: true } : step,
+    );
+  });
+
+  private readonly baseSteps = computed<TimelineStep[]>(() => {
     const order = this.order();
     const created: TimelineStep = {
       key: 'timeline.created',
@@ -73,14 +108,15 @@ export class OrderTimeline {
         },
       ];
     }
+    const paid = order.totalAmount > 0 ? order.remainingAmount <= 0 : !!order.completedAt;
+    const paidAt =
+      order.payments
+        .filter((payment) => payment.status === 'PAID' && payment.paidAt)
+        .map((payment) => payment.paidAt as string)
+        .sort()
+        .at(-1) ?? null;
     return [
       created,
-      {
-        key: 'timeline.confirmed',
-        icon: 'pi pi-wallet',
-        at: order.confirmedAt,
-        done: !!order.confirmedAt,
-      },
       {
         key: 'timeline.preparing',
         icon: 'pi pi-hourglass',
@@ -88,6 +124,12 @@ export class OrderTimeline {
         done: !!order.preparingAt,
       },
       { key: 'timeline.ready', icon: 'pi pi-bell', at: order.readyAt, done: !!order.readyAt },
+      {
+        key: 'timeline.confirmed',
+        icon: 'pi pi-wallet',
+        at: paid ? paidAt : null,
+        done: paid,
+      },
       {
         key: 'timeline.completed',
         icon: 'pi pi-check',

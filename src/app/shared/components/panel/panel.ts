@@ -6,7 +6,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   host: { class: 'block' },
   template: `
     <section
-      class="bg-card border-line shadow-soft animate-rise h-full rounded-3xl border p-5 transition-shadow duration-300 hover:shadow-lift md:p-6"
+      class="bg-card border-line shadow-soft animate-rise flex h-full flex-col rounded-3xl border p-5 transition-shadow duration-300 hover:shadow-lift md:p-6"
     >
       @if (heading()) {
         <header class="mb-4 flex flex-wrap items-center justify-between gap-3">

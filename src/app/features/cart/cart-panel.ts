@@ -1,87 +1,141 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 
 import { CartService } from '../../core/cart/cart.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ConfirmService } from '../../shared/services/confirm.service';
-import { OrderLine } from '../../shared/components/order-line/order-line';
+import { LineExtras } from '../../shared/components/line-extras/line-extras';
+import { ProductImage } from '../../shared/components/product-image/product-image';
 import { QtyStepper } from '../../shared/components/qty-stepper/qty-stepper';
-import { SummaryRow } from '../../shared/components/summary-row/summary-row';
+import { cartSummaryLines } from '../../shared/utils/order-lines';
 import { formatBaht } from '../../shared/utils/price';
 
 @Component({
   selector: 'app-cart-panel',
-  imports: [ButtonModule, OrderLine, QtyStepper, SummaryRow],
+  imports: [ButtonModule, LineExtras, ProductImage, QtyStepper],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex h-full flex-col' },
   template: `
-    <div class="flex items-center justify-between">
-      <h3 class="text-ink text-lg font-bold">{{ i18n.t('cart.title') }}</h3>
+    <header class="flex items-center gap-3 pb-4">
+      <span
+        class="from-brand to-accent grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-linear-to-br text-white shadow-md"
+      >
+        <i class="pi pi-shopping-bag text-lg"></i>
+      </span>
+      <div class="min-w-0 flex-1">
+        <h3 class="font-display text-ink text-xl leading-tight font-bold">
+          {{ i18n.t('cart.title') }}
+        </h3>
+        <p class="text-ink-muted text-sm">{{ i18n.t('cart.itemCount', { n: cart.count() }) }}</p>
+      </div>
       @if (!cart.isEmpty()) {
-        <p-button
-          [label]="i18n.t('cart.clear')"
-          icon="pi pi-trash"
-          severity="danger"
-          size="small"
-          [text]="true"
-          [rounded]="true"
-          (onClick)="clearCart()"
-        />
+        <button
+          type="button"
+          class="text-ink-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+          (click)="clearCart()"
+        >
+          <i class="pi pi-trash text-xs"></i>{{ i18n.t('cart.clear') }}
+        </button>
       }
-    </div>
+    </header>
 
     @if (cart.isEmpty()) {
-      <div class="flex flex-1 flex-col items-center justify-center py-10 text-center">
-        <span class="bg-brand-soft text-brand mb-3 grid h-16 w-16 place-items-center rounded-full">
-          <i class="pi pi-shopping-bag text-2xl"></i>
+      <div class="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+        <span
+          class="bg-brand-soft text-brand animate-float mb-5 grid h-24 w-24 place-items-center rounded-full"
+        >
+          <i class="pi pi-shopping-bag text-4xl"></i>
         </span>
-        <p class="text-ink font-medium">{{ i18n.t('cart.empty') }}</p>
+        <p class="font-display text-ink text-lg font-bold">{{ i18n.t('cart.empty') }}</p>
         <p class="text-ink-muted mt-1 text-sm">{{ i18n.t('cart.emptyHint') }}</p>
-      </div>
-    } @else {
-      <div class="divide-line mt-2 flex-1 divide-y overflow-y-auto">
-        @for (line of cart.lines(); track line.key) {
-          <app-order-line [line]="line">
-            <div class="flex items-center justify-between gap-2">
-              <app-qty-stepper
-                [qty]="line.qty"
-                size="sm"
-                (increment)="cart.increment(line.key)"
-                (decrement)="cart.decrement(line.key)"
-              />
-              <p-button
-                icon="pi pi-trash"
-                severity="danger"
-                size="small"
-                [text]="true"
-                [rounded]="true"
-                [ariaLabel]="i18n.t('cart.removeItem', { name: i18n.text(line.item.name) })"
-                (onClick)="cart.remove(line.key)"
-              />
-            </div>
-          </app-order-line>
-        }
-      </div>
-
-      <div class="border-line mt-4 flex flex-col gap-2 border-t pt-4">
-        <app-summary-row [label]="i18n.t('cart.subtotal')" [value]="formatBaht(cart.subtotal())" />
-        <app-summary-row
-          [label]="i18n.t('cart.total')"
-          [value]="formatBaht(cart.subtotal())"
-          [emphasis]="true"
-        />
         <p-button
-          [label]="i18n.t('cart.checkout')"
+          styleClass="mt-6"
+          [label]="i18n.t('member.orderNow')"
           icon="pi pi-arrow-right"
           iconPos="right"
           [rounded]="true"
-          [fluid]="true"
-          size="large"
-          styleClass="mt-2"
-          (onClick)="checkout()"
+          (onClick)="browseMenu()"
         />
       </div>
+    } @else {
+      <ul class="-mx-1 flex flex-1 flex-col gap-3 overflow-y-auto px-1 py-1">
+        @for (line of cart.lines(); track line.key) {
+          <li
+            class="border-line bg-card hover:shadow-soft animate-pop flex gap-3 rounded-2xl border p-3 transition"
+          >
+            <div class="bg-canvas h-20 w-20 shrink-0 overflow-hidden rounded-xl p-1">
+              <app-product-image
+                class="h-full"
+                [src]="line.item.imageUrl"
+                [palette]="line.item.palette"
+                [label]="i18n.text(line.item.name)"
+                imageClass="h-full w-full rounded-lg object-cover"
+              />
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-ink line-clamp-2 leading-tight font-bold">
+                  {{ i18n.text(line.item.name) }}
+                </p>
+                <button
+                  type="button"
+                  class="text-ink-muted -mt-1 -mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                  [attr.aria-label]="i18n.t('cart.removeItem', { name: i18n.text(line.item.name) })"
+                  (click)="cart.remove(line.key)"
+                >
+                  <i class="pi pi-times text-xs"></i>
+                </button>
+              </div>
+              @if (summaries()[line.key]; as summary) {
+                @if (summary.extras || summary.omitted.length) {
+                  <p class="text-ink-muted mt-1 line-clamp-2 text-xs">
+                    <app-line-extras [line]="summary" />
+                  </p>
+                }
+              }
+              <div class="mt-auto flex items-center justify-between gap-2 pt-2">
+                <app-qty-stepper
+                  [qty]="line.qty"
+                  size="sm"
+                  (increment)="cart.increment(line.key)"
+                  (decrement)="cart.decrement(line.key)"
+                />
+                <span class="font-display text-ink text-lg font-bold tabular-nums">{{
+                  formatBaht(line.unitPrice * line.qty)
+                }}</span>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      <footer class="bg-canvas -mx-1 mt-4 rounded-3xl p-4">
+        <div class="text-ink-muted flex items-center justify-between text-sm">
+          <span>{{ i18n.t('cart.subtotal') }}</span>
+          <span class="tabular-nums">{{ formatBaht(cart.subtotal()) }}</span>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <span class="text-ink font-bold">{{ i18n.t('cart.total') }}</span>
+          <span class="font-display text-brand text-3xl font-extrabold tabular-nums">{{
+            formatBaht(cart.subtotal())
+          }}</span>
+        </div>
+        <button
+          type="button"
+          class="from-brand to-accent shadow-lift mt-4 flex h-14 w-full items-center justify-between rounded-2xl bg-linear-to-r px-5 text-lg font-bold text-white transition hover:brightness-110 active:scale-[0.98]"
+          (click)="checkout()"
+        >
+          <span class="flex items-center gap-2">
+            <span
+              class="grid h-8 min-w-8 place-items-center rounded-full bg-white/20 px-2 text-sm"
+              >{{ cart.count() }}</span
+            >
+            {{ i18n.t('cart.checkout') }}
+          </span>
+          <i class="pi pi-arrow-right"></i>
+        </button>
+      </footer>
     }
   `,
 })
@@ -93,6 +147,12 @@ export class CartPanel {
 
   protected readonly formatBaht = formatBaht;
 
+  protected readonly summaries = computed(() =>
+    Object.fromEntries(
+      cartSummaryLines(this.cart.lines(), this.i18n).map((summary) => [summary.key, summary]),
+    ),
+  );
+
   protected async clearCart(): Promise<void> {
     const confirmed = await this.confirm.ask({
       message: this.i18n.t('cart.clearConfirm'),
@@ -102,6 +162,11 @@ export class CartPanel {
     if (confirmed) {
       this.cart.clear();
     }
+  }
+
+  protected browseMenu(): void {
+    this.cart.drawerOpen.set(false);
+    this.router.navigate(['/'], { fragment: 'menu' });
   }
 
   protected checkout(): void {

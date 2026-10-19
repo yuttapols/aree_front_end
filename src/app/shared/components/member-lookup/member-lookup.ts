@@ -19,7 +19,7 @@ import { PointsChip } from '../points-chip/points-chip';
   template: `
     @if (member(); as current) {
       <div class="bg-brand-soft flex items-center gap-3 rounded-2xl px-3 py-2.5">
-        <app-avatar [url]="current.avatarUrl" [name]="current.nickname" />
+        <app-avatar [url]="current.avatarUrl ?? null" [name]="current.nickname" />
         <div class="min-w-0 flex-1">
           <p class="text-ink truncate text-sm font-bold">{{ current.nickname }}</p>
           <p class="text-ink-muted truncate text-xs">

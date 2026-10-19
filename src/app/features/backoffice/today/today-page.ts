@@ -8,8 +8,9 @@ import {
   signal,
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
+import { finalize } from 'rxjs';
 
-import { OrderResponse } from '../../../core/api/models/order.model';
+import { OrderResponse, OrderStatus } from '../../../core/api/models/order.model';
 import { OrderApi } from '../../../core/api/services/order.api';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -72,11 +73,11 @@ const CARD_TONES: Record<
   },
 };
 
+const QUEUED_STATUSES: OrderStatus[] = ['PENDING_PAYMENT', 'CONFIRMED', 'PREPARING', 'READY'];
+const IN_PROGRESS_STATUSES: OrderStatus[] = ['PREPARING', 'READY'];
+
 function isQueued(order: OrderResponse): boolean {
-  return (
-    order.status === 'PENDING_PAYMENT' ||
-    (!!order.payLater && order.status !== 'COMPLETED' && order.status !== 'CANCELLED')
-  );
+  return QUEUED_STATUSES.includes(order.status);
 }
 
 @Component({
@@ -337,12 +338,14 @@ export class TodayPage {
     const queue = this.queue();
     return (
       queue.find((order) => order.id === this.selectedId()) ??
+      queue.find((order) => IN_PROGRESS_STATUSES.includes(order.status)) ??
       queue.find((order) => !order.payLater) ??
       null
     );
   });
 
   private readonly details = signal<Record<number, OrderResponse>>({});
+  private readonly starting = new Set<number>();
 
   protected readonly currentDetail = computed(() => {
     const current = this.current();
@@ -361,15 +364,44 @@ export class TodayPage {
     this.load();
     const timer = setInterval(() => {
       this.now.set(Date.now());
-      this.load();
+      this.load(true);
     }, REFRESH_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    effect(() => {
+      const current = this.current();
+      if (current && !IN_PROGRESS_STATUSES.includes(current.status)) {
+        this.startPreparing(current);
+      }
+    });
     effect(() => {
       const current = this.current();
       if (current && !current.items?.length && !this.details()[current.id]) {
         this.loadDetail(current.id);
       }
     });
+  }
+
+  private startPreparing(order: OrderResponse): void {
+    if (this.starting.has(order.id)) {
+      return;
+    }
+    this.starting.add(order.id);
+    this.api
+      .updateStatus(order.id, 'PREPARING')
+      .pipe(finalize(() => this.starting.delete(order.id)))
+      .subscribe((updated) => this.replaceInQueue(updated));
+  }
+
+  private replaceInQueue(order: OrderResponse): void {
+    this.queueList.update(
+      (queue) =>
+        queue?.map((candidate) =>
+          candidate.id === order.id ? { ...candidate, ...order } : candidate,
+        ) ?? null,
+    );
+    if (this.details()[order.id]) {
+      this.details.update((details) => ({ ...details, [order.id]: order }));
+    }
   }
 
   private loadDetail(id: number): void {
@@ -398,7 +430,13 @@ export class TodayPage {
     if (!confirmed) {
       return;
     }
+    const previous = current && current.status === 'PREPARING' ? current : null;
     this.selectedId.set(order.id);
+    if (previous) {
+      this.api
+        .updateStatus(previous.id, 'PENDING_PAYMENT')
+        .subscribe((updated) => this.replaceInQueue(updated));
+    }
     if (window.matchMedia('(max-width: 1023px)').matches) {
       document.getElementById('now-serving')?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -440,16 +478,19 @@ export class TodayPage {
     return (order.items ?? []).reduce((total, item) => total + item.quantity, 0);
   }
 
-  protected load(): void {
+  protected load(background = false): void {
     this.api
-      .orders({
-        status: null,
-        channel: null,
-        queue: true,
-        date: toDateKey(new Date()),
-        page: 0,
-        size: 100,
-      })
+      .orders(
+        {
+          status: null,
+          channel: null,
+          queue: true,
+          date: toDateKey(new Date()),
+          page: 0,
+          size: 100,
+        },
+        { background },
+      )
       .subscribe((page) => this.queueList.set((page.items ?? []).filter(isQueued)));
   }
 }

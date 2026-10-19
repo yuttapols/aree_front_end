@@ -15,15 +15,16 @@ export interface PointTransactionResponse {
 }
 
 export interface PointSummaryResponse {
-  pointsBalance: number;
-  lifetimePoints: number;
-  expiringPoints: number;
-  expiringAt: string | null;
-  earnBahtPerPoint: number;
-  redeemPointsPerBaht: number;
-  redeemMinPoints: number;
-  redeemMaxPercent: number;
-  expireDays: number;
+  balance: number;
+  expiringSoon: number;
+  nextExpiryAt: string | null;
+  expiringWindowDays: number;
+  lifetimePoints?: number | null;
+  earnBahtPerPoint?: number | null;
+  redeemPointsPerBaht?: number | null;
+  redeemMinPoints?: number | null;
+  redeemMaxPercent?: number | null;
+  expireDays?: number | null;
 }
 
 export interface AdjustPointsRequest {

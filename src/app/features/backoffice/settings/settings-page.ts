@@ -4,6 +4,8 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { TabsModule } from 'primeng/tabs';
@@ -55,6 +57,8 @@ const METHOD_ICONS: Record<string, string> = {
     ReactiveFormsModule,
     ButtonModule,
     DialogModule,
+    IconFieldModule,
+    InputIconModule,
     InputNumberModule,
     InputTextModule,
     TabsModule,
@@ -93,25 +97,31 @@ const METHOD_ICONS: Record<string, string> = {
                 >
                   <div class="grid gap-4 md:grid-cols-2">
                     <app-form-field inputId="s-name" [label]="i18n.t('settings.shopName') + ' *'">
-                      <input
-                        pInputText
-                        id="s-name"
-                        formControlName="shopName"
-                        class="rounded-xl"
-                        [fluid]="true"
-                      />
+                      <p-iconfield>
+                        <p-inputicon class="pi pi-shop text-brand" />
+                        <input
+                          pInputText
+                          id="s-name"
+                          formControlName="shopName"
+                          class="rounded-xl"
+                          [fluid]="true"
+                        />
+                      </p-iconfield>
                     </app-form-field>
                     <app-form-field inputId="s-phone" [label]="i18n.t('register.phone')">
-                      <input
-                        pInputText
-                        id="s-phone"
-                        type="tel"
-                        inputmode="numeric"
-                        formControlName="shopPhone"
-                        class="rounded-xl"
-                        placeholder="0812345678"
-                        [fluid]="true"
-                      />
+                      <p-iconfield>
+                        <p-inputicon class="pi pi-phone text-brand" />
+                        <input
+                          pInputText
+                          id="s-phone"
+                          type="tel"
+                          inputmode="numeric"
+                          formControlName="shopPhone"
+                          class="rounded-xl"
+                          placeholder="0812345678"
+                          [fluid]="true"
+                        />
+                      </p-iconfield>
                     </app-form-field>
                     <app-form-field
                       class="md:col-span-2"
@@ -168,6 +178,23 @@ const METHOD_ICONS: Record<string, string> = {
                       />
                     </app-form-field>
                   </div>
+                  @if (hoursBar(); as segments) {
+                    <div class="mt-5" aria-hidden="true">
+                      <div class="bg-canvas relative h-3 overflow-hidden rounded-full">
+                        @for (segment of segments; track segment.left) {
+                          <span
+                            class="from-brand to-accent absolute inset-y-0 rounded-full bg-linear-to-r"
+                            [style.left.%]="segment.left"
+                            [style.width.%]="segment.width"
+                          ></span>
+                        }
+                      </div>
+                      <div class="text-ink-muted mt-1.5 flex justify-between text-xs tabular-nums">
+                        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span
+                        ><span>24:00</span>
+                      </div>
+                    </div>
+                  }
                 </app-settings-section>
 
                 <app-settings-section
@@ -177,24 +204,30 @@ const METHOD_ICONS: Record<string, string> = {
                 >
                   <div class="grid gap-4 md:grid-cols-2">
                     <app-form-field inputId="s-promptpay" [label]="i18n.t('settings.promptpay')">
-                      <input
-                        pInputText
-                        id="s-promptpay"
-                        inputmode="numeric"
-                        formControlName="promptpayId"
-                        class="rounded-xl tabular-nums"
-                        placeholder="0812345678"
-                        [fluid]="true"
-                      />
+                      <p-iconfield>
+                        <p-inputicon class="pi pi-qrcode text-brand" />
+                        <input
+                          pInputText
+                          id="s-promptpay"
+                          inputmode="numeric"
+                          formControlName="promptpayId"
+                          class="rounded-xl tabular-nums"
+                          placeholder="0812345678"
+                          [fluid]="true"
+                        />
+                      </p-iconfield>
                     </app-form-field>
                     <app-form-field inputId="s-bank" [label]="i18n.t('settings.bankAccount')">
-                      <input
-                        pInputText
-                        id="s-bank"
-                        formControlName="bankAccount"
-                        class="rounded-xl"
-                        [fluid]="true"
-                      />
+                      <p-iconfield>
+                        <p-inputicon class="pi pi-building-columns text-brand" />
+                        <input
+                          pInputText
+                          id="s-bank"
+                          formControlName="bankAccount"
+                          class="rounded-xl"
+                          [fluid]="true"
+                        />
+                      </p-iconfield>
                     </app-form-field>
                   </div>
                 </app-settings-section>
@@ -239,8 +272,8 @@ const METHOD_ICONS: Record<string, string> = {
                 >
                   <i class="pi pi-eye" aria-hidden="true"></i>{{ i18n.t('settings.preview') }}
                 </p>
-                <div class="bg-card border-line shadow-soft overflow-hidden rounded-3xl border">
-                  <div class="bg-royal flex items-center gap-3 px-5 py-5 text-white">
+                <div class="bg-card border-line shadow-lift overflow-hidden rounded-3xl border">
+                  <div class="bg-royal flex items-center gap-3 px-5 py-6 text-white">
                     <app-brand-logo class="h-14" />
                     <div class="min-w-0">
                       <p class="font-display truncate text-xl font-extrabold">
@@ -414,14 +447,6 @@ const METHOD_ICONS: Record<string, string> = {
                           </p>
                         }
                         <div class="flex flex-wrap gap-1.5">
-                          @if (method.requiresSlip) {
-                            <span
-                              class="bg-accent-soft text-accent rounded-full px-2.5 py-1 text-xs font-bold"
-                            >
-                              <i class="pi pi-image mr-1 text-[0.65rem]"></i
-                              >{{ i18n.t('settings.requiresSlip') }}
-                            </span>
-                          }
                           @if (method.requiresReference) {
                             <span
                               class="bg-brand-soft text-brand rounded-full px-2.5 py-1 text-xs font-bold"
@@ -526,11 +551,6 @@ const METHOD_ICONS: Record<string, string> = {
         </app-form-field>
         <div class="flex flex-wrap gap-4 sm:col-span-2">
           <label class="text-ink flex items-center gap-2 text-sm"
-            ><p-toggleswitch formControlName="requiresSlip" />{{
-              i18n.t('settings.requiresSlip')
-            }}</label
-          >
-          <label class="text-ink flex items-center gap-2 text-sm"
             ><p-toggleswitch formControlName="requiresReference" />{{
               i18n.t('settings.requiresReference')
             }}</label
@@ -599,7 +619,6 @@ export class SettingsPage {
     name: ['', textField(TEXT_LIMITS.methodName, true)],
     nameEn: ['', textField(TEXT_LIMITS.methodName)],
     instruction: ['', textField(TEXT_LIMITS.instruction)],
-    requiresSlip: [false],
     requiresReference: [false],
     allowOnline: [true],
     active: [true],
@@ -647,6 +666,22 @@ export class SettingsPage {
     }
     const minutes = (close - open + MINUTES_PER_DAY) % MINUTES_PER_DAY;
     return Math.round((minutes / 60) * 10) / 10;
+  });
+
+  protected readonly hoursBar = computed(() => {
+    const open = minutesOf(this.formValue().openTime ?? '');
+    const close = minutesOf(this.formValue().closeTime ?? '');
+    if (open === null || close === null || open === close) {
+      return null;
+    }
+    const percent = (minutes: number) => (minutes / MINUTES_PER_DAY) * 100;
+    if (close > open) {
+      return [{ left: percent(open), width: percent(close - open) }];
+    }
+    return [
+      { left: 0, width: percent(close) },
+      { left: percent(open), width: 100 - percent(open) },
+    ];
   });
 
   protected readonly previewRows = computed(() => {
@@ -706,7 +741,6 @@ export class SettingsPage {
       name: method?.name ?? '',
       nameEn: method?.nameEn ?? '',
       instruction: method?.instruction ?? '',
-      requiresSlip: method?.requiresSlip ?? false,
       requiresReference: method?.requiresReference ?? false,
       allowOnline: method?.allowOnline ?? true,
       active: method?.active ?? true,
@@ -754,7 +788,6 @@ export class SettingsPage {
         code: next.code,
         name: next.name,
         nameEn: next.nameEn,
-        requiresSlip: next.requiresSlip,
         requiresReference: next.requiresReference,
         allowOnline: next.allowOnline,
         active: next.active,

@@ -175,11 +175,11 @@ const ALL = 'all';
               (apply)="store.promoCode.set($event)"
               (remove)="store.promoCode.set(null)"
             />
-            @if (store.member() && quote(); as current) {
+            @if (store.member() && redeemableQuote(); as current) {
               <app-point-redeem
                 [balance]="current.pointsBalance ?? 0"
-                [max]="current.maxRedeemablePoints"
-                [min]="current.redeemMinPoints"
+                [max]="current.maxRedeemablePoints ?? 0"
+                [min]="current.redeemMinPoints ?? 0"
                 [perBaht]="current.redeemPointsPerBaht"
                 [points]="store.redeemPoints()"
                 (pointsChange)="store.redeemPoints.set($event)"
@@ -321,6 +321,11 @@ export class PosPage {
     ),
     { initialValue: null as QuoteResponse | null },
   );
+
+  protected readonly redeemableQuote = computed(() => {
+    const quote = this.quote();
+    return quote?.maxRedeemablePoints != null && quote.redeemMinPoints != null ? quote : null;
+  });
 
   constructor() {
     this.catalog.refresh();

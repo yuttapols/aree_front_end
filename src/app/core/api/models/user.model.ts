@@ -53,21 +53,20 @@ export interface ChangePasswordRequest {
 }
 
 export interface CustomerResponse {
-  id: number;
+  userId: number;
   memberCode: string;
   phone: string;
   email: string | null;
   nickname: string;
   firstName: string | null;
   lastName: string | null;
-  avatarUrl: string | null;
   pointsBalance: number;
-  lifetimePoints: number;
   status: UserStatus;
-  orderCount: number;
-  totalSpent: number;
-  lastOrderAt: string | null;
-  createdAt: string;
+  memberSince: string | null;
+  avatarUrl?: string | null;
+  lifetimePoints?: number | null;
+  orderCount?: number | null;
+  totalSpent?: number | null;
 }
 
 export interface QuickRegisterRequest {

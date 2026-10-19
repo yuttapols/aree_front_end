@@ -8,9 +8,11 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     <section
       class="bg-card border-line shadow-soft animate-rise overflow-hidden rounded-3xl border transition-shadow duration-300 hover:shadow-lift"
     >
-      <header class="border-line flex items-start gap-4 border-b px-5 py-4 md:px-6">
+      <header
+        class="border-line from-brand-soft/70 flex items-center gap-4 border-b bg-linear-to-r to-transparent px-5 py-4 md:px-6"
+      >
         <span
-          class="bg-brand-soft text-brand grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg"
+          class="from-brand to-accent shadow-soft grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-linear-to-br text-lg text-white"
           aria-hidden="true"
         >
           <i [class]="icon()"></i>

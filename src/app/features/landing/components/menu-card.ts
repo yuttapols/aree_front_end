@@ -77,10 +77,9 @@ import { CartActions } from '../../cart/cart-actions.service';
         <app-qty-stepper
           class="ml-auto"
           [qty]="qty()"
-          size="sm"
           [disabled]="soldOut()"
           [addLabel]="name()"
-          (increment)="actions.add(item())"
+          (increment)="actions.openOptions(item())"
           (decrement)="actions.remove(item())"
         />
       </div>

@@ -53,7 +53,7 @@ export type MockProduct = Omit<
   optionGroupIds: number[];
 };
 export type MockOptionGroup = OptionGroupResponse;
-export type MockPaymentMethod = Omit<PaymentMethodResponse, 'promptpayId' | 'bankAccount'>;
+export type MockPaymentMethod = Omit<PaymentMethodResponse, 'promptPayId' | 'bankAccount'>;
 
 export interface MockOrder {
   id: number;

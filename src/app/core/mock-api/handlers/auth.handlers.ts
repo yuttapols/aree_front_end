@@ -285,10 +285,11 @@ export function registerAuthHandlers(router: MockRouter): void {
         )
         .sort((a, b) => (a.expiresAt ?? '').localeCompare(b.expiresAt ?? ''));
       return {
-        pointsBalance: user.profile?.pointsBalance ?? 0,
+        balance: user.profile?.pointsBalance ?? 0,
         lifetimePoints: user.profile?.lifetimePoints ?? 0,
-        expiringPoints: expiring.reduce((total, chunk) => total + (chunk.remaining ?? 0), 0),
-        expiringAt: expiring[0]?.expiresAt ?? null,
+        expiringSoon: expiring.reduce((total, chunk) => total + (chunk.remaining ?? 0), 0),
+        nextExpiryAt: expiring[0]?.expiresAt ?? null,
+        expiringWindowDays: 30,
         earnBahtPerPoint: settings.earnBahtPerPoint,
         redeemPointsPerBaht: settings.redeemPointsPerBaht,
         redeemMinPoints: settings.redeemMinPoints,

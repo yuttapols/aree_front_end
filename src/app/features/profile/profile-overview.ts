@@ -10,6 +10,7 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { FavoritesService } from '../../core/menu/favorites.service';
 import { Crumb } from '../../shared/components/breadcrumbs/breadcrumbs';
+import { OrderHistoryRow } from '../../shared/components/order-history-row/order-history-row';
 import { CtaLink } from '../../shared/components/cta-link/cta-link';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../shared/components/page-header/page-header';
@@ -17,9 +18,6 @@ import { Panel } from '../../shared/components/panel/panel';
 import { PromoCard } from '../../shared/components/promo-card/promo-card';
 import { QrCode } from '../../shared/components/qr-code/qr-code';
 import { StatCard } from '../../shared/components/stat-card/stat-card';
-import { StatusTag } from '../../shared/components/status-tag/status-tag';
-import { MoneyPipe } from '../../shared/pipes/money.pipe';
-import { ThaiDatePipe } from '../../shared/pipes/thai-date.pipe';
 import { formatDate, formatMoney, formatNumber } from '../../shared/utils/format';
 
 const HISTORY_SIZE = 100;
@@ -28,6 +26,7 @@ const RECENT_LIMIT = 5;
 @Component({
   selector: 'app-profile-overview',
   imports: [
+    OrderHistoryRow,
     RouterLink,
     CtaLink,
     EmptyState,
@@ -36,9 +35,6 @@ const RECENT_LIMIT = 5;
     PromoCard,
     QrCode,
     StatCard,
-    StatusTag,
-    MoneyPipe,
-    ThaiDatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -63,9 +59,9 @@ const RECENT_LIMIT = 5;
               <h2 class="font-display mt-3 text-2xl font-bold md:text-3xl">
                 {{ i18n.t('member.greeting', { name: user.nickname }) }}
               </h2>
-              @if (points(); as summary) {
+              @if (points()?.earnBahtPerPoint; as rate) {
                 <p class="mt-1 text-sm text-white/70">
-                  {{ i18n.t('member.pointsRate', { n: summary.earnBahtPerPoint }) }}
+                  {{ i18n.t('member.pointsRate', { n: rate }) }}
                 </p>
               }
             </div>
@@ -91,7 +87,7 @@ const RECENT_LIMIT = 5;
               </div>
             </div>
           </div>
-          @if (points()?.expiringPoints) {
+          @if (points()?.expiringSoon) {
             <p class="relative mt-5 rounded-2xl bg-white/10 px-4 py-2.5 text-xs">
               <i class="pi pi-clock mr-1"></i>
               {{ expiringText() }}
@@ -127,33 +123,9 @@ const RECENT_LIMIT = 5;
             {{ i18n.t('common.viewAll') }}
           </a>
           @if (recent().length) {
-            <ul class="divide-line divide-y">
+            <ul class="flex flex-col gap-3">
               @for (order of recent(); track order.orderNo) {
-                <li>
-                  <a
-                    [routerLink]="['/profile/orders', order.orderNo]"
-                    class="hover:bg-canvas -mx-2 flex items-center gap-4 rounded-2xl px-2 py-3 transition"
-                  >
-                    <span
-                      class="bg-brand-soft text-brand grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
-                    >
-                      <i class="pi pi-receipt"></i>
-                    </span>
-                    <div class="min-w-0 flex-1">
-                      <p class="text-ink truncate text-sm font-semibold">#{{ order.orderNo }}</p>
-                      <p class="text-ink-muted truncate text-xs">
-                        {{ order.createdAt | thaiDate: i18n.lang() : 'datetime' }} ·
-                        {{ i18n.t('member.itemCount', { n: order.items.length }) }}
-                      </p>
-                    </div>
-                    <div class="flex shrink-0 flex-col items-end gap-1">
-                      <span class="text-ink text-sm font-bold tabular-nums">{{
-                        order.totalAmount | money
-                      }}</span>
-                      <app-status-tag kind="order" [value]="order.status" />
-                    </div>
-                  </a>
-                </li>
+                <li><app-order-history-row [order]="order" /></li>
               }
             </ul>
           } @else {
@@ -225,8 +197,8 @@ export class ProfileOverview {
     const summary = this.points();
     return summary
       ? this.i18n.t('points.expiring', {
-          n: formatNumber(summary.expiringPoints),
-          date: formatDate(summary.expiringAt, this.i18n.lang()),
+          n: formatNumber(summary.expiringSoon),
+          date: summary.nextExpiryAt ? formatDate(summary.nextExpiryAt, this.i18n.lang()) : '-',
         })
       : '';
   });
