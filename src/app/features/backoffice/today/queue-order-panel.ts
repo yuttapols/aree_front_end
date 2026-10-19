@@ -229,7 +229,7 @@ const PAY_LATER_STATUSES = ['PENDING_PAYMENT', 'PREPARING'];
             <button
               type="button"
               class="from-accent to-brand shadow-lift group relative flex min-h-24 flex-1 items-center justify-center gap-3 overflow-hidden rounded-2xl bg-linear-to-r text-xl font-extrabold text-white ring-4 ring-amber-300/40 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-              [disabled]="busy() || order().status !== 'PREPARING'"
+              [disabled]="busy()"
               (click)="readyConfirming.set(true)"
             >
               <span class="absolute inset-0 animate-pulse bg-white/10" aria-hidden="true"></span>
@@ -411,9 +411,13 @@ export class QueueOrderPanel {
   protected markReady(): void {
     const order = this.order();
     this.busy.set(true);
-    this.api
-      .updateStatus(order.id, 'READY')
-      .pipe(finalize(() => this.busy.set(false)))
+    const preparing$ =
+      order.status === 'PREPARING' ? of(order) : this.api.updateStatus(order.id, 'PREPARING');
+    preparing$
+      .pipe(
+        switchMap(() => this.api.updateStatus(order.id, 'READY')),
+        finalize(() => this.busy.set(false)),
+      )
       .subscribe((updated) => {
         this.messages.add({
           severity: 'success',
