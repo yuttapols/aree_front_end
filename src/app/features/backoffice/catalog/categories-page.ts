@@ -330,6 +330,8 @@ export class CategoriesPage {
   private readonly catalog = inject(CatalogStore);
   private readonly confirm = inject(ConfirmService);
   private readonly messages = inject(MessageService);
+  private readonly slugConflict = signal<string | null>(null);
+  private readonly slugConflictMessage = signal('');
 
   protected readonly icons = ICONS;
   protected readonly categories = signal<CategoryResponse[]>([]);
@@ -396,6 +398,9 @@ export class CategoriesPage {
 
   protected errorFor(field: 'name' | 'slug'): string | null {
     const control = this.form.controls[field];
+    if (field === 'slug' && this.slugConflict() === control.value) {
+      return this.slugConflictMessage();
+    }
     if (!shouldShowError(control, this.submitted())) {
       return null;
     }
@@ -407,6 +412,7 @@ export class CategoriesPage {
   protected edit(category: CategoryResponse | null): void {
     this.editingId.set(category?.id ?? null);
     this.submitted.set(false);
+    this.slugConflict.set(null);
     this.form.reset({
       name: category?.name ?? '',
       nameEn: category?.nameEn ?? '',
@@ -429,10 +435,18 @@ export class CategoriesPage {
     this.saving.set(true);
     (id ? this.api.updateCategory(id, request) : this.api.createCategory(request))
       .pipe(finalize(() => this.saving.set(false)))
-      .subscribe(() => {
-        this.dialogOpen.set(false);
-        this.messages.add({ severity: 'success', summary: this.i18n.t('common.saved') });
-        this.afterChange();
+      .subscribe({
+        next: () => {
+          this.dialogOpen.set(false);
+          this.messages.add({ severity: 'success', summary: this.i18n.t('common.saved') });
+          this.afterChange();
+        },
+        error: (error: unknown) => {
+          if (error instanceof ApiException && error.code === 'DUPLICATE_VALUE') {
+            this.slugConflictMessage.set(error.message || this.i18n.error(error.code));
+            this.slugConflict.set(request.slug);
+          }
+        },
       });
   }
 

@@ -14,7 +14,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { catchError, finalize, of } from 'rxjs';
+import { catchError, finalize, map, of } from 'rxjs';
 
 import { OrderResponse } from '../../../core/api/models/order.model';
 import { OrderApi } from '../../../core/api/services/order.api';
@@ -135,7 +135,10 @@ export class ReceivePaymentDialog {
   protected readonly saving = signal(false);
 
   protected readonly methods = toSignal(
-    this.api.paymentMethods('WALK_IN').pipe(catchError(() => of([]))),
+    this.api.adminPaymentMethods().pipe(
+      map((methods) => methods.filter((method) => method.active)),
+      catchError(() => of([])),
+    ),
     { initialValue: [] },
   );
 

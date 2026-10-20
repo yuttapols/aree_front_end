@@ -28,7 +28,8 @@ import { PayLaterTag } from '../../../shared/components/pay-later-tag/pay-later-
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { QueueOrderPanel } from './queue-order-panel';
 
-const REFRESH_MS = 10_000;
+const REFRESH_MS = 15_000;
+const ERROR_BACKOFF_MS = [30_000, 60_000];
 
 type CardTone = 'next' | 'debt' | 'normal';
 
@@ -345,6 +346,10 @@ export class TodayPage {
   });
 
   private readonly details = signal<Record<number, OrderResponse>>({});
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private loading = false;
+  private failures = 0;
+  private destroyed = false;
   private readonly starting = new Set<number>();
 
   protected readonly currentDetail = computed(() => {
@@ -362,11 +367,21 @@ export class TodayPage {
 
   constructor() {
     this.load();
-    const timer = setInterval(() => {
-      this.now.set(Date.now());
-      this.load(true);
-    }, REFRESH_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    const clock = setInterval(() => this.now.set(Date.now()), 30_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        this.load(true);
+      } else {
+        this.clearPoll();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      clearInterval(clock);
+      this.clearPoll();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    });
     effect(() => {
       const current = this.current();
       if (current && !IN_PROGRESS_STATUSES.includes(current.status)) {
@@ -479,6 +494,11 @@ export class TodayPage {
   }
 
   protected load(background = false): void {
+    if (this.loading || this.destroyed) {
+      return;
+    }
+    this.clearPoll();
+    this.loading = true;
     this.api
       .orders(
         {
@@ -489,8 +509,41 @@ export class TodayPage {
           page: 0,
           size: 100,
         },
-        { background },
+        { background, silent: background },
       )
-      .subscribe((page) => this.queueList.set((page.items ?? []).filter(isQueued)));
+      .pipe(finalize(() => (this.loading = false)))
+      .subscribe({
+        next: (page) => {
+          this.failures = 0;
+          this.queueList.set((page.items ?? []).filter(isQueued));
+          this.schedulePoll();
+        },
+        error: () => {
+          this.failures++;
+          this.queueList.update((queue) => queue ?? []);
+          this.schedulePoll();
+        },
+      });
+  }
+
+  private schedulePoll(): void {
+    this.clearPoll();
+    if (this.destroyed || document.visibilityState === 'hidden') {
+      return;
+    }
+    const delay = this.failures
+      ? ERROR_BACKOFF_MS[Math.min(this.failures, ERROR_BACKOFF_MS.length) - 1]
+      : REFRESH_MS;
+    this.pollTimer = setTimeout(() => {
+      this.now.set(Date.now());
+      this.load(true);
+    }, delay);
+  }
+
+  private clearPoll(): void {
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 }

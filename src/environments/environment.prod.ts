@@ -1,5 +1,5 @@
 export const environment = {
-  apiHost: 'https://aree-back-end.onrender.com',
+  apiHost: '',
   apiBaseUrl: '/api/v1',
   useMockApi: false,
   mockLatencyMs: 250,
