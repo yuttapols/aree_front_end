@@ -696,14 +696,13 @@ export class ProductsPage {
       originalPrice: product?.originalPrice ?? null,
       imageUrl: product?.imageUrl ?? null,
       badge: product?.badge ?? null,
-      optionGroupIds: (product && productOptionGroupIds(product)) ?? [],
+      optionGroupIds: [],
       available: product?.available ?? true,
       recommended: product?.recommended ?? false,
       active: product?.active ?? true,
     });
-    const knownGroups = product ? productOptionGroupIds(product) : [];
-    this.groupsReady.set(knownGroups !== null);
-    if (product && knownGroups === null) {
+    this.groupsReady.set(!product);
+    if (product) {
       this.api.adminProduct(product.id).subscribe((detail) => {
         if (this.editingId() !== product.id) {
           return;
