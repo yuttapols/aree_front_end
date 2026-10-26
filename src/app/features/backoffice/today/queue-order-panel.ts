@@ -27,7 +27,6 @@ import { formatMoney } from '../../../shared/utils/format';
 import { CancelOrderDialog } from './cancel-order-dialog';
 import { CashPaymentDialog } from './cash-payment-dialog';
 import { EditOrderItemsDialog } from './edit-order-items-dialog';
-import { ReadyConfirmDialog } from './ready-confirm-dialog';
 import { SettleConfirmDialog } from './settle-confirm-dialog';
 import { LineExtras } from '../../../shared/components/line-extras/line-extras';
 
@@ -59,7 +58,6 @@ const PAY_LATER_STATUSES = ['PENDING_PAYMENT', 'PREPARING'];
     EditOrderItemsDialog,
     CashPaymentDialog,
     PayLaterTag,
-    ReadyConfirmDialog,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block h-full' },
@@ -100,10 +98,12 @@ const PAY_LATER_STATUSES = ['PENDING_PAYMENT', 'PREPARING'];
               <span
                 class="bg-brand-soft text-brand font-display grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-extrabold"
               >
-                {{ line.qty }}
+                {{ $index + 1 }}
               </span>
               <div class="min-w-0 flex-1">
-                <p class="text-ink font-bold">{{ line.name }}</p>
+                <p class="text-ink font-bold">
+                  {{ line.name }} <span class="text-brand tabular-nums">×{{ line.qty }}</span>
+                </p>
                 @if (line.extras || line.omitted.length) {
                   <p class="text-ink-muted mt-0.5 text-sm"><app-line-extras [line]="line" /></p>
                 }
@@ -139,119 +139,81 @@ const PAY_LATER_STATUSES = ['PENDING_PAYMENT', 'PREPARING'];
           >
             <i class="pi pi-bell"></i>{{ i18n.t('bo.today.readyWaiting') }}
           </p>
-          <div class="bg-canvas mt-4 rounded-2xl p-4">
-            <p class="text-ink mb-3 font-bold">{{ i18n.t('bo.today.paidWith') }}</p>
-            <div class="grid grid-cols-2 gap-3" role="radiogroup">
-              @for (method of methods(); track method.code) {
-                @let danger = method.code === 'PAY_LATER';
-                <button
-                  type="button"
-                  role="radio"
-                  class="flex items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition"
-                  [class]="
-                    (danger ? 'col-span-2 ' : '') +
-                    (selectedMethod() === method.code
-                      ? danger
-                        ? 'border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-                        : 'border-brand bg-brand-soft text-brand'
-                      : danger
-                        ? 'border-line bg-card text-ink hover:border-red-300'
-                        : 'border-line bg-card text-ink hover:border-brand/40')
-                  "
-                  [attr.aria-checked]="selectedMethod() === method.code"
-                  (click)="selectedMethod.set(method.code)"
-                >
-                  <span
-                    class="grid h-6 w-6 shrink-0 place-items-center rounded-md border-2 transition"
-                    [class]="
-                      selectedMethod() === method.code
-                        ? danger
-                          ? 'border-red-500 bg-red-500 text-white'
-                          : 'border-brand bg-brand text-on-brand'
-                        : 'border-line'
-                    "
-                  >
-                    @if (selectedMethod() === method.code) {
-                      <i class="pi pi-check text-[0.65rem]"></i>
-                    }
-                  </span>
-                  <i [class]="method.icon" class="text-xl"></i>
-                  <span class="font-bold">{{ i18n.t(method.labelKey) }}</span>
-                </button>
-              }
-            </div>
-            <div class="mt-4 flex gap-3">
-              @if (selectedMethod() === 'PAY_LATER') {
-                <button
-                  type="button"
-                  class="flex min-h-24 flex-1 flex-col items-center justify-center gap-1.5 rounded-2xl bg-red-500 text-2xl font-bold text-white shadow-lg shadow-red-500/30 transition hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                  [disabled]="busy() || !!order().payLater"
-                  (click)="payLater()"
-                >
-                  <i
-                    class="pi text-3xl"
-                    [class.pi-send]="!busy()"
-                    [class.pi-spinner]="busy()"
-                    [class.pi-spin]="busy()"
-                  ></i>
-                  {{ i18n.t('pos.addPayLater') }}
-                </button>
-              } @else {
-                <button
-                  type="button"
-                  class="flex min-h-24 flex-1 flex-col items-center justify-center gap-1.5 rounded-2xl bg-green-500 text-2xl font-bold text-white shadow-lg shadow-green-500/30 transition hover:bg-green-600 active:scale-95 disabled:cursor-not-allowed disabled:bg-green-500/40 disabled:shadow-none"
-                  [disabled]="!selectedMethod() || busy()"
-                  (click)="openSettle()"
-                >
-                  <i
-                    class="pi text-3xl"
-                    [class.pi-check-circle]="!busy()"
-                    [class.pi-spinner]="busy()"
-                    [class.pi-spin]="busy()"
-                  ></i>
-                  {{ i18n.t('bo.today.settle') }}
-                </button>
-              }
-            </div>
-          </div>
-        } @else {
-          <div class="mt-4 flex gap-3">
-            <button
-              type="button"
-              class="flex w-20 shrink-0 items-center justify-center rounded-2xl border-2 border-red-500 bg-card text-red-600 transition hover:bg-red-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
-              [disabled]="busy()"
-              (click)="cancelling.set(true)"
-              [attr.aria-label]="i18n.t('bo.today.cancel')"
-              [title]="i18n.t('bo.today.cancel')"
-            >
-              <i class="pi pi-trash text-2xl"></i>
-            </button>
-            <button
-              type="button"
-              class="bg-accent font-display relative flex min-h-24 flex-1 items-center justify-center gap-3 overflow-hidden rounded-2xl text-2xl font-extrabold text-white shadow-[0_16px_30px_-14px_rgb(247_147_30/0.95)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
-              [disabled]="busy()"
-              (click)="readyConfirming.set(true)"
-            >
-              <span class="relative grid h-10 w-10 place-items-center rounded-full bg-white/20"
-                ><i class="pi pi-bell text-lg" aria-hidden="true"></i
-              ></span>
-              <span class="relative">{{ i18n.t('bo.today.markReady') }}</span>
-            </button>
-          </div>
         }
+        <div class="mt-4">
+          <p class="text-ink-muted mb-2 text-sm font-semibold">{{ i18n.t('bo.today.paidWith') }}</p>
+          <div class="grid auto-cols-fr grid-flow-col gap-2" role="radiogroup">
+            @for (method of methods(); track method.code) {
+              @let danger = method.code === 'PAY_LATER';
+              <button
+                type="button"
+                role="radio"
+                class="flex items-center justify-center gap-2 rounded-xl border-2 px-2 py-2.5 transition"
+                [class]="
+                  selectedMethod() === method.code
+                    ? danger
+                      ? 'border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+                      : 'border-brand bg-brand-soft text-brand'
+                    : danger
+                      ? 'border-line bg-card text-ink hover:border-red-300'
+                      : 'border-line bg-card text-ink hover:border-brand/40'
+                "
+                [attr.aria-checked]="selectedMethod() === method.code"
+                (click)="selectedMethod.set(method.code)"
+              >
+                <i [class]="method.icon" class="text-lg"></i>
+                <span class="text-sm font-bold">{{ i18n.t(method.labelKey) }}</span>
+              </button>
+            }
+          </div>
+          <div class="mt-3 flex gap-3">
+            @if (order().status !== 'READY') {
+              <button
+                type="button"
+                class="flex w-20 shrink-0 items-center justify-center rounded-2xl border-2 border-red-500 bg-card text-red-600 transition hover:bg-red-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                [disabled]="busy()"
+                (click)="cancelling.set(true)"
+                [attr.aria-label]="i18n.t('bo.today.cancel')"
+                [title]="i18n.t('bo.today.cancel')"
+              >
+                <i class="pi pi-trash text-2xl"></i>
+              </button>
+            }
+            @if (selectedMethod() === 'PAY_LATER') {
+              <button
+                type="button"
+                class="flex min-h-20 flex-1 items-center justify-center gap-3 rounded-2xl bg-red-500 text-2xl font-bold text-white shadow-lg shadow-red-500/30 transition hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                [disabled]="busy() || !!order().payLater"
+                (click)="payLater()"
+              >
+                <i
+                  class="pi text-2xl"
+                  [class.pi-send]="!busy()"
+                  [class.pi-spinner]="busy()"
+                  [class.pi-spin]="busy()"
+                ></i>
+                {{ i18n.t('pos.addPayLater') }}
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="flex min-h-20 flex-1 items-center justify-center gap-3 rounded-2xl bg-green-500 text-2xl font-bold text-white shadow-lg shadow-green-500/30 transition hover:bg-green-600 active:scale-95 disabled:cursor-not-allowed disabled:bg-green-500/40 disabled:shadow-none"
+                [disabled]="!selectedMethod() || busy()"
+                (click)="openSettle()"
+              >
+                <i
+                  class="pi text-2xl"
+                  [class.pi-check-circle]="!busy()"
+                  [class.pi-spinner]="busy()"
+                  [class.pi-spin]="busy()"
+                ></i>
+                {{ i18n.t('bo.today.settle') }}
+              </button>
+            }
+          </div>
+        </div>
       </div>
     </app-panel>
-
-    <app-ready-confirm-dialog
-      [(visible)]="readyConfirming"
-      [queueNo]="order().queueNo"
-      [customerName]="displayName()"
-      [lines]="lines()"
-      [note]="order().note"
-      [total]="order().totalAmount"
-      [busy]="busy()"
-      (confirmed)="markReady()"
-    />
 
     <app-cash-payment-dialog
       [(visible)]="payingCash"
@@ -338,7 +300,6 @@ export class QueueOrderPanel {
   protected readonly confirming = signal(false);
   protected readonly payingCash = signal(false);
   protected readonly cancelling = signal(false);
-  protected readonly readyConfirming = signal(false);
   protected readonly editingItems = signal(false);
   protected readonly method = computed(
     () =>
@@ -364,6 +325,7 @@ export class QueueOrderPanel {
     effect(() => {
       this.orderId();
       this.pendingMethodCode();
+      this.order().payLater;
       this.selectedMethod.set(untracked(() => this.initialMethod()));
       this.confirming.set(false);
       this.cancelling.set(false);
@@ -407,26 +369,6 @@ export class QueueOrderPanel {
       });
   }
 
-  protected markReady(): void {
-    const order = this.order();
-    this.busy.set(true);
-    const preparing$ =
-      order.status === 'PREPARING' ? of(order) : this.api.updateStatus(order.id, 'PREPARING');
-    preparing$
-      .pipe(
-        switchMap(() => this.api.updateStatus(order.id, 'READY')),
-        finalize(() => this.busy.set(false)),
-      )
-      .subscribe((updated) => {
-        this.messages.add({
-          severity: 'success',
-          summary: this.i18n.t('bo.today.markedReady', { n: order.queueNo }),
-        });
-        this.readyConfirming.set(false);
-        this.itemsUpdated.emit(updated);
-      });
-  }
-
   protected openSettle(): void {
     if (this.selectedMethod() === 'CASH') {
       this.payingCash.set(true);
@@ -447,9 +389,12 @@ export class QueueOrderPanel {
       order.remainingAmount > 0 && !usesCustomerChoice
         ? { methodCode: method.code, cashReceived, referenceNo: null }
         : undefined;
-    this.api
-      .complete(order.id, payment)
-      .pipe(finalize(() => this.busy.set(false)))
+    const ready$ = order.status === 'READY' ? of(order) : this.readyFrom(order);
+    ready$
+      .pipe(
+        switchMap(() => this.api.complete(order.id, payment)),
+        finalize(() => this.busy.set(false)),
+      )
       .subscribe(() => {
         this.confirming.set(false);
         this.payingCash.set(false);
@@ -460,6 +405,12 @@ export class QueueOrderPanel {
         });
         this.finished.emit();
       });
+  }
+
+  private readyFrom(order: OrderResponse) {
+    const preparing$ =
+      order.status === 'PREPARING' ? of(order) : this.api.updateStatus(order.id, 'PREPARING');
+    return preparing$.pipe(switchMap(() => this.api.updateStatus(order.id, 'READY')));
   }
 
   protected cancel(reason: string): void {
