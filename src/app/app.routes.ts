@@ -4,6 +4,15 @@ import { authGuard, guestOnlyGuard, roleGuard } from './core/auth/guards';
 
 export const routes: Routes = [
   {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () => import('./features/kiosk/kiosk-page').then((m) => m.KioskPage),
+  },
+  {
+    path: 'kiosk',
+    loadComponent: () => import('./features/kiosk/kiosk-page').then((m) => m.KioskPage),
+  },
+  {
     path: 'backoffice',
     canActivate: [roleGuard('STAFF', 'ADMIN')],
     loadComponent: () =>
@@ -16,8 +25,7 @@ export const routes: Routes = [
     loadComponent: () => import('./layout/public-layout/public-layout').then((m) => m.PublicLayout),
     children: [
       {
-        path: '',
-        pathMatch: 'full',
+        path: 'shop',
         loadComponent: () => import('./features/landing/landing-page').then((m) => m.LandingPage),
       },
       {

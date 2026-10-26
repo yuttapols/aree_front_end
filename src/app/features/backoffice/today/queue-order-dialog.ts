@@ -38,7 +38,6 @@ const METHODS: { code: CounterMethod; labelKey: TranslationKey; icon: string }[]
       (visibleChange)="!$event && closed.emit()"
       [modal]="true"
       [draggable]="false"
-      [dismissableMask]="true"
       [breakpoints]="{ '768px': '96vw' }"
       [style]="{ width: '40rem' }"
       [showHeader]="false"

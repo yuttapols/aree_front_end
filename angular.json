@@ -83,6 +83,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "sit": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -95,6 +106,10 @@
             },
             "development": {
               "buildTarget": "aree-front-end:build:development"
+            },
+            "sit": {
+              "buildTarget": "aree-front-end:build:sit",
+              "proxyConfig": "proxy.sit.json"
             }
           },
           "defaultConfiguration": "development"

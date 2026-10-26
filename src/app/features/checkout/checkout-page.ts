@@ -7,6 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -53,6 +54,7 @@ import { LineExtras } from '../../shared/components/line-extras/line-extras';
 @Component({
   selector: 'app-checkout-page',
   imports: [
+    NgTemplateOutlet,
     LineExtras,
     ShopStatus,
     StepProgress,
@@ -80,7 +82,7 @@ import { LineExtras } from '../../shared/components/line-extras/line-extras';
   template: `
     <app-page-header [title]="i18n.t('checkout.title')" [crumbs]="crumbs" />
 
-    <div class="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
+    <div class="mx-auto max-w-6xl px-4 pt-8 pb-28 md:px-6 md:pt-10 lg:pb-10">
       @if (cart.isEmpty()) {
         <div class="bg-card border-line shadow-soft mx-auto max-w-xl rounded-3xl border p-6">
           <app-empty-state icon="pi pi-inbox" [title]="i18n.t('checkout.emptyTitle')">
@@ -154,6 +156,12 @@ import { LineExtras } from '../../shared/components/line-extras/line-extras';
                             class="mt-auto self-start pt-2"
                             size="sm"
                             [qty]="line.qty"
+                            [addLabel]="
+                              i18n.t('cart.increaseQty', { name: i18n.text(line.item.name) })
+                            "
+                            [removeLabel]="
+                              i18n.t('cart.decreaseQty', { name: i18n.text(line.item.name) })
+                            "
                             (increment)="cart.increment(line.key)"
                             (decrement)="cart.decrement(line.key)"
                           />
@@ -382,27 +390,33 @@ import { LineExtras } from '../../shared/components/line-extras/line-extras';
                 </div>
 
                 <div class="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    class="from-brand to-accent shadow-lift flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r text-lg font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-                    [disabled]="
-                      stage() === 'details'
-                        ? !shop.acceptingOrders()
-                        : placing() || !paymentMethod() || !shop.acceptingOrders()
-                    "
-                    (click)="stage() === 'details' ? goToPayment() : confirm()"
-                  >
-                    @if (stage() === 'details') {
-                      {{ i18n.t('checkout.nextPayment') }}
-                      <i class="pi pi-arrow-right"></i>
-                    } @else {
-                      <i
-                        class="pi"
-                        [class]="placing() ? 'pi-spin pi-spinner' : 'pi-check-circle'"
-                      ></i>
-                      {{ i18n.t('checkout.confirm') }}
-                    }
-                  </button>
+                  <div class="hidden lg:block">
+                    <ng-container *ngTemplateOutlet="primaryAction" />
+                  </div>
+                  <ng-template #primaryAction>
+                    <button
+                      type="button"
+                      [attr.aria-busy]="placing()"
+                      class="from-brand to-accent shadow-lift flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r text-lg font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                      [disabled]="
+                        stage() === 'details'
+                          ? !shop.acceptingOrders()
+                          : placing() || !paymentMethod() || !shop.acceptingOrders()
+                      "
+                      (click)="stage() === 'details' ? goToPayment() : confirm()"
+                    >
+                      @if (stage() === 'details') {
+                        {{ i18n.t('checkout.nextPayment') }}
+                        <i class="pi pi-arrow-right"></i>
+                      } @else {
+                        <i
+                          class="pi"
+                          [class]="placing() ? 'pi-spin pi-spinner' : 'pi-check-circle'"
+                        ></i>
+                        {{ i18n.t('checkout.confirm') }}
+                      }
+                    </button>
+                  </ng-template>
                   @if (stage() === 'details') {
                     <a
                       routerLink="/"
@@ -429,6 +443,19 @@ import { LineExtras } from '../../shared/components/line-extras/line-extras';
               </div>
             </div>
           </aside>
+        </div>
+        <div
+          class="bg-card/95 border-line fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t px-4 py-3 backdrop-blur lg:hidden"
+        >
+          <div class="shrink-0">
+            <p class="text-ink-muted text-xs">{{ i18n.t('cart.total') }}</p>
+            <p class="font-display text-brand text-xl font-extrabold tabular-nums">
+              {{ quote()?.totalAmount ?? cart.subtotal() | money }}
+            </p>
+          </div>
+          <div class="min-w-0 flex-1">
+            <ng-container *ngTemplateOutlet="primaryAction" />
+          </div>
         </div>
       }
     </div>

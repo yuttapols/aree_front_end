@@ -59,5 +59,5 @@ export class QtyStepper {
   readonly decrement = output<void>();
 
   protected readonly collapsed = computed(() => this.qty() <= 0 && this.min() <= 0);
-  protected readonly buttonClass = computed(() => (this.size() === 'sm' ? 'h-7 w-7' : 'h-10 w-10'));
+  protected readonly buttonClass = computed(() => (this.size() === 'sm' ? 'h-9 w-9' : 'h-10 w-10'));
 }

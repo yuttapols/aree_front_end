@@ -80,7 +80,6 @@ function toEditLine(
       [(visible)]="visible"
       [modal]="true"
       [draggable]="false"
-      [dismissableMask]="!saving()"
       [closable]="!saving()"
       [style]="{ width: '40rem' }"
       [breakpoints]="{ '640px': '95vw' }"

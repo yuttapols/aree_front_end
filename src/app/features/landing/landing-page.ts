@@ -46,7 +46,15 @@ import { SearchBar } from './components/search-bar';
             <app-category-strip />
           }
         </div>
-        @if (catalog.loaded()) {
+        @if (catalog.failed() && !catalog.items().length) {
+          <div role="alert" class="bg-card border-line flex flex-col items-center gap-3 rounded-3xl border border-dashed px-6 py-12 text-center">
+            <i class="pi pi-exclamation-circle text-accent text-3xl" aria-hidden="true"></i>
+            <p class="text-ink font-semibold">{{ i18n.t('menu.loadError') }}</p>
+            <button type="button" class="bg-brand text-on-brand inline-flex min-h-11 items-center gap-2 rounded-full px-6 font-bold transition hover:brightness-110 active:scale-95 disabled:opacity-60" [disabled]="catalog.loading()" (click)="catalog.refresh()">
+              <i class="pi pi-refresh" [class.pi-spin]="catalog.loading()" aria-hidden="true"></i>{{ i18n.t('menu.retry') }}
+            </button>
+          </div>
+        } @else if (catalog.loaded()) {
           <app-menu-section />
         } @else {
           <app-loading-skeleton variant="card" [count]="8" />
@@ -66,7 +74,8 @@ import { SearchBar } from './components/search-bar';
       <div class="animate-pop fixed inset-x-4 bottom-4 z-30 lg:hidden">
         <button
           type="button"
-          class="bg-brand text-on-brand flex w-full items-center justify-between rounded-full px-5 py-3.5 font-semibold shadow-xl transition active:scale-[0.98]"
+          [attr.aria-label]="i18n.t('cart.view') + ' ' + cart.count()"
+          class="bg-brand text-on-brand flex min-h-12 w-full items-center justify-between rounded-full px-5 py-3.5 font-semibold shadow-xl transition active:scale-[0.98]"
           (click)="cart.drawerOpen.set(true)"
         >
           <span class="flex items-center gap-2">

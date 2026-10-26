@@ -8,18 +8,18 @@ import { toggleOption } from '../../utils/options';
 @Component({
   selector: 'app-option-selector',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-5' },
+  host: { class: 'flex flex-col gap-6' },
   template: `
     @for (group of groups(); track group.id) {
       <fieldset>
-        <legend class="mb-2 flex w-full items-center justify-between gap-2">
-          <span class="text-ink text-sm font-semibold">{{ i18n.text(group.name) }}</span>
+        <legend class="mb-3 flex w-full items-center justify-between gap-2">
+          <span class="font-display text-ink text-lg font-bold">{{ i18n.text(group.name) }}</span>
           <span
-            class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.7rem] font-semibold transition"
+            class="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition"
             [class]="hintClass(group)"
           >
             @if (group.minSelect > 0 && isComplete(group)) {
-              <i class="pi pi-check-circle animate-pop text-[0.7rem]"></i>
+              <i class="pi pi-check-circle animate-pop text-xs"></i>
             }
             {{ hint(group) }}
           </span>
@@ -28,32 +28,40 @@ import { toggleOption } from '../../utils/options';
           @for (option of group.options; track option.id) {
             <button
               type="button"
-              class="border-line hover:border-brand/50 flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-              [class.border-brand]="isSelected(option)"
-              [class.bg-brand-soft]="isSelected(option)"
+              class="bg-card hover:border-brand/40 flex min-h-14 items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              [class]="
+                isSelected(option)
+                  ? 'border-brand bg-brand-soft shadow-[0_8px_20px_-12px_rgb(74_29_128/0.7)]'
+                  : 'border-line'
+              "
               [attr.aria-pressed]="isSelected(option)"
               [disabled]="isBlocked(group, option)"
               (click)="selectedChange.emit(toggle(group, option))"
             >
               <span
-                class="grid h-5 w-5 shrink-0 place-items-center border-2 transition"
+                class="grid h-6 w-6 shrink-0 place-items-center border-2 transition"
                 [class]="
                   (group.maxSelect === 1 ? 'rounded-full ' : 'rounded-md ') +
                   (isSelected(option) ? 'border-brand bg-brand text-on-brand' : 'border-line')
                 "
               >
                 @if (isSelected(option)) {
-                  <i class="pi pi-check text-[0.6rem]"></i>
+                  <i class="pi pi-check text-xs"></i>
                 }
               </span>
               <span
-                class="flex-1 text-sm"
+                class="flex-1 font-semibold"
                 [class]="option.available ? 'text-ink' : 'text-ink-muted line-through'"
               >
                 {{ i18n.text(option.name) }}
               </span>
               @if (option.available) {
-                <span class="text-ink-muted text-xs">
+                <span
+                  class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold"
+                  [class]="
+                    option.price > 0 ? 'bg-accent-soft text-accent' : 'bg-card-muted text-ink-muted'
+                  "
+                >
                   {{ option.price > 0 ? '+' + money(option.price) : i18n.t('options.free') }}
                 </span>
               } @else {

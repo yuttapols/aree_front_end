@@ -17,7 +17,6 @@ import { SignOutService } from '../../services/sign-out.service';
       [modal]="true"
       [draggable]="false"
       [closable]="!signOut.busy()"
-      [dismissableMask]="!signOut.busy()"
       [breakpoints]="{ '640px': '94vw' }"
       [style]="{ width: '28rem' }"
       [showHeader]="false"

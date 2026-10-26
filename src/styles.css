@@ -393,3 +393,46 @@
 .p-dialog-footer .p-button:not(.p-button-text):not(.p-button-outlined) {
   box-shadow: 0 10px 20px -10px rgb(74 29 128 / 0.6);
 }
+
+.p-dialog {
+  max-height: calc(100dvh - 2rem);
+}
+
+.p-dialog-content {
+  overscroll-behavior: contain;
+}
+
+.p-dialog-header .p-button:focus-visible,
+.dialog-actions .p-button:focus-visible,
+.p-dialog-footer .p-button:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .p-dialog {
+    max-width: calc(100vw - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 1.25rem;
+  }
+
+  .p-dialog-header {
+    padding: 1rem 1.25rem;
+  }
+
+  .p-dialog-header + .p-dialog-content {
+    padding: 1.25rem;
+  }
+
+  .dialog-actions {
+    bottom: -1.25rem;
+    margin: 1rem -1.25rem -1.25rem;
+    padding: 0.875rem 1.25rem;
+  }
+
+  .dialog-actions .p-button,
+  .p-dialog-footer .p-button {
+    flex: 1 1 0;
+    padding-inline: 1rem;
+  }
+}

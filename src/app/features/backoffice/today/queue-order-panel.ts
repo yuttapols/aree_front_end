@@ -228,13 +228,12 @@ const PAY_LATER_STATUSES = ['PENDING_PAYMENT', 'PREPARING'];
             </button>
             <button
               type="button"
-              class="from-accent to-brand shadow-lift group relative flex min-h-24 flex-1 items-center justify-center gap-3 overflow-hidden rounded-2xl bg-linear-to-r text-xl font-extrabold text-white ring-4 ring-amber-300/40 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+              class="bg-accent font-display relative flex min-h-24 flex-1 items-center justify-center gap-3 overflow-hidden rounded-2xl text-2xl font-extrabold text-white shadow-[0_16px_30px_-14px_rgb(247_147_30/0.95)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
               [disabled]="busy()"
               (click)="readyConfirming.set(true)"
             >
-              <span class="absolute inset-0 animate-pulse bg-white/10" aria-hidden="true"></span>
               <span class="relative grid h-10 w-10 place-items-center rounded-full bg-white/20"
-                ><i class="pi pi-bell animate-bounce text-lg"></i
+                ><i class="pi pi-bell text-lg" aria-hidden="true"></i
               ></span>
               <span class="relative">{{ i18n.t('bo.today.markReady') }}</span>
             </button>

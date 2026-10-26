@@ -32,13 +32,13 @@ import { CartActions } from '../../cart/cart-actions.service';
         }
         <button
           type="button"
-          class="grid h-8 w-8 place-items-center rounded-full transition active:scale-75"
+          class="-my-2 -mr-1.5 grid h-11 w-11 place-items-center rounded-full transition active:scale-75"
           [class]="favorite() ? 'text-accent' : 'text-ink-muted hover:text-accent'"
           [attr.aria-label]="i18n.t('popular.favorite')"
           [attr.aria-pressed]="favorite()"
           (click)="favorites.toggle(item().id)"
         >
-          <i [class]="favorite() ? 'pi pi-heart-fill animate-pop' : 'pi pi-heart'"></i>
+          <i aria-hidden="true" [class]="favorite() ? 'pi pi-heart-fill animate-pop' : 'pi pi-heart'"></i>
         </button>
       </div>
 

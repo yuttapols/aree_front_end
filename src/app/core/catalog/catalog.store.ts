@@ -17,6 +17,7 @@ export class CatalogStore {
   readonly promotions = signal<PromotionResponse[]>([]);
   readonly loading = signal(false);
   readonly loaded = signal(false);
+  readonly failed = signal(false);
 
   readonly itemsById = computed(() => new Map(this.items().map((item) => [item.id, item])));
   readonly itemsByCode = computed(() => new Map(this.items().map((item) => [item.code, item])));
@@ -28,6 +29,7 @@ export class CatalogStore {
       return;
     }
     this.loading.set(true);
+    this.failed.set(false);
     forkJoin({
       menu: this.catalogApi.menu(),
       promotions: this.promotionApi.publicList().pipe(catchError(() => of([]))),
@@ -45,6 +47,7 @@ export class CatalogStore {
         this.loading.set(false);
       },
       error: () => {
+        this.failed.set(true);
         this.loaded.set(true);
         this.loading.set(false);
       },

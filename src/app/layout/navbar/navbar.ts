@@ -9,6 +9,7 @@ import { filter, map } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
 import { CartService } from '../../core/cart/cart.service';
+import { CatalogStore } from '../../core/catalog/catalog.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslationKey } from '../../core/i18n/translations';
 import { ThemeService } from '../../core/theme/theme.service';
@@ -84,7 +85,7 @@ const STAFF_LINKS: AccountLink[] = [
         </a>
 
         <ul class="ml-auto hidden items-center gap-1 lg:flex">
-          @for (link of links; track link.labelKey) {
+          @for (link of links(); track link.labelKey) {
             <li>
               <a
                 [routerLink]="link.link"
@@ -135,7 +136,7 @@ const STAFF_LINKS: AccountLink[] = [
       styleClass="!w-80"
     >
       <ul class="flex flex-col gap-1">
-        @for (link of links; track link.labelKey) {
+        @for (link of links(); track link.labelKey) {
           <li>
             <a
               [routerLink]="link.link"
@@ -191,6 +192,11 @@ export class Navbar {
   protected readonly auth = inject(AuthStore);
   private readonly signOutFlow = inject(SignOutService);
   private readonly router = inject(Router);
+  private readonly catalog = inject(CatalogStore);
+
+  constructor() {
+    this.catalog.load();
+  }
 
   private readonly url = toSignal(
     this.router.events.pipe(
@@ -206,12 +212,18 @@ export class Navbar {
   protected readonly drawerItemClass =
     'text-ink hover:bg-brand-soft hover:text-brand flex items-center gap-3 rounded-2xl px-4 py-3 font-medium transition';
 
-  protected readonly links: NavLink[] = [
+  private readonly allLinks: NavLink[] = [
     { labelKey: 'nav.home', link: '/', fragment: 'home', icon: 'pi pi-home' },
     { labelKey: 'nav.menu', link: '/', fragment: 'menu', icon: 'pi pi-th-large' },
     { labelKey: 'nav.offers', link: '/promotions', icon: 'pi pi-percentage' },
     { labelKey: 'nav.contact', link: '/', fragment: 'contact', icon: 'pi pi-map-marker' },
   ];
+
+  protected readonly links = computed(() =>
+    this.catalog.promotions().length
+      ? this.allLinks
+      : this.allLinks.filter((link) => link.link !== '/promotions'),
+  );
 
   protected readonly accountLinks = computed<AccountLink[]>(() => {
     if (!this.auth.isLoggedIn()) {

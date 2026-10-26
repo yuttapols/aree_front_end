@@ -38,7 +38,6 @@ const REASONS: { id: string; labelKey: TranslationKey }[] = [
       [modal]="true"
       [draggable]="false"
       [closable]="!busy()"
-      [dismissableMask]="!busy()"
       [breakpoints]="{ '640px': '94vw' }"
       [style]="{ width: '32rem' }"
       [showHeader]="false"

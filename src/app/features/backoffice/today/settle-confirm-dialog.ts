@@ -16,7 +16,6 @@ import { MoneyPipe } from '../../../shared/pipes/money.pipe';
       [modal]="true"
       [draggable]="false"
       [closable]="!busy()"
-      [dismissableMask]="!busy()"
       [breakpoints]="{ '640px': '94vw' }"
       [style]="{ width: '32rem' }"
       [showHeader]="false"

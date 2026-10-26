@@ -14,27 +14,32 @@ function passwordChangeRedirect(store: AuthStore, router: Router, url: string): 
   return store.user()?.passwordChangeRequired ? router.createUrlTree([CHANGE_PASSWORD_PATH]) : null;
 }
 
-export const authGuard: CanActivateFn = (_route, state) => {
+export const authGuard: CanActivateFn = async (_route, state) => {
   const store = inject(AuthStore);
   const router = inject(Router);
+  await inject(AuthService).sessionRestored;
   if (!store.isLoggedIn()) {
     return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   }
   return passwordChangeRedirect(store, router, state.url) ?? true;
 };
 
-export const guestOnlyGuard: CanActivateFn = () => {
+export const guestOnlyGuard: CanActivateFn = async () => {
   const store = inject(AuthStore);
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.sessionRestored;
   if (!store.isLoggedIn()) {
     return true;
   }
-  return inject(Router).createUrlTree([inject(AuthService).landingPathFor(store.role())]);
+  return router.createUrlTree([auth.landingPathFor(store.role())]);
 };
 
 export function roleGuard(...roles: UserRole[]): CanActivateFn {
-  return (_route, state) => {
+  return async (_route, state) => {
     const store = inject(AuthStore);
     const router = inject(Router);
+    await inject(AuthService).sessionRestored;
     if (!store.isLoggedIn()) {
       return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
     }

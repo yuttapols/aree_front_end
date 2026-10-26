@@ -120,8 +120,10 @@ export class AuthService {
     return this.refreshInFlight;
   }
 
-  restoreSession(): Promise<boolean> {
-    return firstValueFrom(this.refresh());
+  sessionRestored: Promise<boolean> = Promise.resolve(false);
+
+  restoreSession(): void {
+    this.sessionRestored = firstValueFrom(this.refresh());
   }
 
   reloadMe(): Observable<MeResponse> {
@@ -152,7 +154,10 @@ export class AuthService {
   }
 
   landingPathFor(role: UserRole | null): string {
-    return role === 'STAFF' || role === 'ADMIN' ? '/backoffice' : '/';
+    if (role === 'STAFF') {
+      return '/backoffice/queue-board';
+    }
+    return role === 'ADMIN' ? '/backoffice' : '/';
   }
 
   private keepSessionAlive(): void {

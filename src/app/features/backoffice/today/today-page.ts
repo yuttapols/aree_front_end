@@ -7,7 +7,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ButtonModule } from 'primeng/button';
 import { finalize } from 'rxjs';
 
 import { OrderResponse, OrderStatus } from '../../../core/api/models/order.model';
@@ -23,7 +22,6 @@ import { outstandingAmount } from '../../../shared/utils/price';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { ThaiDatePipe } from '../../../shared/pipes/thai-date.pipe';
 import { toDateKey } from '../../../shared/utils/format';
-import { PosPage } from '../pos/pos-page';
 import { PayLaterTag } from '../../../shared/components/pay-later-tag/pay-later-tag';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { QueueOrderPanel } from './queue-order-panel';
@@ -46,8 +44,8 @@ const CARD_TONES: Record<
   }
 > = {
   next: {
-    card: 'border-transparent bg-gradient-to-br from-[#a87b4f] to-[#d2b48c] text-white shadow-md shadow-[#a87b4f]/30',
-    bubble: 'bg-white/15',
+    card: 'bg-royal border-transparent text-white shadow-lg shadow-brand/30',
+    bubble: 'bg-accent/30',
     number: 'text-white',
     title: 'text-white',
     muted: 'text-white/75',
@@ -91,8 +89,6 @@ function isQueued(order: OrderResponse): boolean {
     MoneyPipe,
     ThaiDatePipe,
     QueueOrderPanel,
-    ButtonModule,
-    PosPage,
     PayLaterTag,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -104,12 +100,6 @@ function isQueued(order: OrderResponse): boolean {
         <h2 class="font-display text-ink text-2xl font-bold">
           {{ i18n.t('bo.today.greeting', { name: auth.user()?.nickname ?? '' }) }}
         </h2>
-        <p-button
-          [label]="i18n.t('bo.nav.pos')"
-          icon="pi pi-calculator"
-          [rounded]="true"
-          (onClick)="scrollToPos()"
-        />
       </div>
 
       @if (queueList(); as data) {
@@ -120,15 +110,6 @@ function isQueued(order: OrderResponse): boolean {
             >
               <span
                 class="bg-accent/25 pointer-events-none absolute -bottom-32 -left-24 -z-10 h-80 w-80 rounded-full blur-3xl"
-              ></span>
-              <span
-                class="pointer-events-none absolute -top-24 -right-24 -z-10 h-72 w-72 rounded-full bg-fuchsia-400/20 blur-3xl"
-              ></span>
-              <span
-                class="pointer-events-none absolute top-1/2 left-[5.5rem] -z-10 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.06] md:left-28"
-              ></span>
-              <span
-                class="pointer-events-none absolute top-1/2 left-[5.5rem] -z-10 h-[19rem] w-[19rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.08] md:left-28"
               ></span>
 
               <div class="flex flex-wrap items-center justify-between gap-3">
@@ -154,25 +135,25 @@ function isQueued(order: OrderResponse): boolean {
               <div class="my-auto flex flex-wrap items-center gap-6 py-7 md:gap-8">
                 @for (queueNo of [serving.queueNo]; track queueNo) {
                   <div
-                    class="animate-pop relative grid h-36 w-36 shrink-0 place-items-center rounded-full bg-gradient-to-br from-white/25 to-white/5 shadow-[0_20px_40px_-12px_rgb(0_0_0/0.45),inset_0_2px_0_rgb(255_255_255/0.35),inset_0_-10px_24px_rgb(0_0_0/0.18)] ring-8 ring-white/[0.07] backdrop-blur-md md:h-44 md:w-44"
+                    class="animate-pop relative grid h-36 w-36 shrink-0 place-items-center rounded-full bg-white shadow-[0_24px_40px_-14px_rgb(0_0_0/0.55)] ring-8 ring-white/15 md:h-44 md:w-44"
                   >
                     <div class="text-center leading-none">
-                      <p class="text-xs font-bold tracking-[0.3em] text-white/70 uppercase">
+                      <p class="text-brand text-sm font-bold">
                         {{ i18n.t('bo.today.queueLabel') }}
                       </p>
-                      <p
-                        class="font-display text-accent mt-1 text-7xl font-extrabold drop-shadow-[0_6px_12px_rgb(0_0_0/0.35)] md:text-8xl"
-                      >
+                      <p class="font-display text-accent mt-1 text-7xl font-extrabold md:text-8xl">
                         {{ queueNo }}
                       </p>
                     </div>
                   </div>
                 }
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-3xl font-bold drop-shadow-sm md:text-4xl">
+                  <p
+                    class="font-display truncate text-4xl leading-tight font-extrabold md:text-5xl"
+                  >
                     {{ displayName(serving) }}
                   </p>
-                  <p class="mt-1 text-sm tracking-wide text-white/65">#{{ serving.orderNo }}</p>
+                  <p class="mt-1 text-base text-white/65 tabular-nums">#{{ serving.orderNo }}</p>
                   <div class="mt-3 flex flex-wrap gap-2">
                     @if (serving.customer?.memberCode; as memberCode) {
                       <span
@@ -249,6 +230,9 @@ function isQueued(order: OrderResponse): boolean {
                   type="button"
                   class="group relative flex flex-col items-start overflow-hidden rounded-3xl border-2 p-4 text-left transition hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
                   [class]="tone.card"
+                  [attr.aria-label]="
+                    i18n.t('bo.today.callQueue', { n: order.queueNo, name: displayName(order) })
+                  "
                   (click)="select(order)"
                 >
                   <span
@@ -300,13 +284,6 @@ function isQueued(order: OrderResponse): boolean {
       } @else {
         <app-loading-skeleton variant="list" [count]="5" />
       }
-
-      <app-pos-page
-        id="walk-in"
-        class="block scroll-mt-24"
-        [embedded]="true"
-        (orderCreated)="load()"
-      />
     </div>
   `,
 })
@@ -455,10 +432,6 @@ export class TodayPage {
     if (window.matchMedia('(max-width: 1023px)').matches) {
       document.getElementById('now-serving')?.scrollIntoView({ behavior: 'smooth' });
     }
-  }
-
-  protected scrollToPos(): void {
-    document.getElementById('walk-in')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   protected onFinished(): void {

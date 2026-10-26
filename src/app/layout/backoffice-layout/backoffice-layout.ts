@@ -94,13 +94,6 @@ const ADMIN_GROUPED = ADMIN_ITEMS.map((item) => ({ ...item, group: 'bo.group.man
         </a>
 
         <div class="ml-auto flex shrink-0 items-center gap-2">
-          <app-icon-button
-            class="hidden sm:inline-flex"
-            variant="glass"
-            icon="pi pi-shop"
-            [label]="i18n.t('bo.storefront')"
-            (pressed)="openStorefront()"
-          />
           <app-lang-switch class="hidden sm:inline-flex" variant="glass" />
           <app-icon-button
             variant="glass"
@@ -167,7 +160,6 @@ export class BackofficeLayout {
   private readonly signOutFlow = inject(SignOutService);
 
   protected readonly footerItems: SideNavItem[] = [
-    { id: 'storefront', labelKey: 'bo.storefront', icon: 'pi pi-shop', link: '/', exact: true },
     {
       id: 'logout',
       labelKey: 'member.signOut',
@@ -178,12 +170,10 @@ export class BackofficeLayout {
   ];
 
   protected readonly items = computed<SideNavItem[]>(() => {
-    return this.auth.isAdmin() ? [...STAFF_GROUPED, ...ADMIN_GROUPED] : STAFF_GROUPED;
+    return this.auth.isAdmin() ? [...STAFF_GROUPED, ...ADMIN_GROUPED] : [];
   });
 
   protected readonly menuItems = computed<MenuItem[]>(() => [
-    { label: this.i18n.t('bo.storefront'), icon: 'pi pi-shop', routerLink: '/' },
-    { separator: true },
     {
       label: this.i18n.t('member.signOut'),
       icon: 'pi pi-sign-out',
@@ -196,10 +186,6 @@ export class BackofficeLayout {
     if (action === 'logout') {
       this.logout();
     }
-  }
-
-  protected openStorefront(): void {
-    window.open('/', '_blank');
   }
 
   private logout(): void {

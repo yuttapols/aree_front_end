@@ -8,7 +8,6 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -16,7 +15,6 @@ import { TranslationKey } from '../../../core/i18n/translations';
 import { MenuItem, MenuOption } from '../../../core/models/menu.model';
 import { ProductImage } from '../product-image/product-image';
 import { OptionSelector } from '../option-selector/option-selector';
-import { Price } from '../price/price';
 import { QtyStepper } from '../qty-stepper/qty-stepper';
 import { defaultSelection, isSelectionValid } from '../../utils/options';
 import { formatBaht, sumOptionPrices } from '../../utils/price';
@@ -29,87 +27,97 @@ export interface OptionsResult {
 
 @Component({
   selector: 'app-item-options-dialog',
-  imports: [ButtonModule, DialogModule, OptionSelector, Price, ProductImage, QtyStepper],
+  imports: [DialogModule, OptionSelector, ProductImage, QtyStepper],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
       [visible]="item() !== null"
       (visibleChange)="!$event && closed.emit()"
       [modal]="true"
-      [dismissableMask]="true"
       [draggable]="false"
       [resizable]="false"
-      [header]="i18n.t('options.title')"
-      [breakpoints]="{ '640px': '94vw' }"
-      [style]="{ width: '34rem' }"
+      [showHeader]="false"
+      [breakpoints]="{ '640px': '96vw' }"
+      [style]="{ width: '36rem', borderRadius: '2rem', overflow: 'hidden' }"
+      [contentStyle]="{ padding: '0' }"
     >
       @if (item(); as current) {
-        <div
-          class="bg-royal relative grid aspect-[16/9] place-items-center overflow-hidden rounded-3xl"
-        >
-          <span
-            class="pointer-events-none absolute -top-16 -right-10 h-48 w-48 rounded-full bg-white/10"
-          ></span>
-          <span
-            class="bg-accent/25 pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full blur-2xl"
-          ></span>
+        <div class="bg-royal relative aspect-[16/10] w-full overflow-hidden">
           <app-product-image
-            class="relative h-full w-full"
+            class="h-full w-full"
             [src]="current.imageUrl"
             [palette]="current.palette"
             [label]="i18n.text(current.name)"
-            imageClass="animate-pop h-full w-full object-cover"
-            plateClass="animate-float mx-auto h-[78%] translate-y-[14%] drop-shadow-[0_18px_24px_rgb(0_0_0/0.35)]"
+            imageClass="h-full w-full object-cover"
+            plateClass="mx-auto h-[82%] translate-y-[10%] drop-shadow-[0_18px_24px_rgb(0_0_0/0.35)]"
           />
-        </div>
-        <div class="mt-4 flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h3 class="font-display text-ink text-2xl font-bold">
-              {{ i18n.text(current.name) }}
-            </h3>
-            <p class="text-ink-muted mt-1 text-sm">{{ i18n.text(current.description) }}</p>
-          </div>
-          <app-price
-            class="shrink-0"
-            [amount]="current.price"
-            [original]="current.originalPrice"
-            size="sm"
-          />
+          <button
+            type="button"
+            class="text-ink absolute top-4 right-4 grid h-12 w-12 place-items-center rounded-full bg-white/90 shadow-lg backdrop-blur transition hover:bg-white active:scale-90"
+            [attr.aria-label]="i18n.t('common.close')"
+            (click)="closed.emit()"
+          >
+            <i class="pi pi-times text-lg" aria-hidden="true"></i>
+          </button>
+          <span
+            class="bg-accent font-display absolute bottom-4 left-4 -rotate-6 rounded-2xl px-5 py-2 text-3xl font-extrabold text-white shadow-[0_12px_24px_-8px_rgb(0_0_0/0.45)]"
+            >{{ formatBaht(current.price) }}</span
+          >
+          @if (current.originalPrice && current.originalPrice > current.price) {
+            <span
+              class="absolute bottom-5 left-36 rounded-full bg-black/45 px-3 py-1 text-sm font-semibold text-white line-through"
+              >{{ formatBaht(current.originalPrice) }}</span
+            >
+          }
         </div>
 
-        @if (current.optionGroups.length) {
-          <app-option-selector
-            class="mt-6"
-            [groups]="current.optionGroups"
-            [selected]="selected()"
-            (selectedChange)="selected.set($event)"
-          />
-        }
-
-        <div class="dialog-actions flex items-center justify-between gap-4">
-          @if (showQty()) {
-            <div>
-              <p class="text-ink-muted mb-1 text-xs">{{ i18n.t('options.quantity') }}</p>
+        <div class="px-6 pt-5 pb-6">
+          <h2 class="font-display text-ink text-3xl leading-tight font-extrabold">
+            {{ i18n.text(current.name) }}
+          </h2>
+          @if (i18n.text(current.description); as description) {
+            <p class="text-ink-muted mt-1">{{ description }}</p>
+          }
+          @if (current.optionGroups.length) {
+            <app-option-selector
+              class="mt-6"
+              [groups]="current.optionGroups"
+              [selected]="selected()"
+              (selectedChange)="selected.set($event)"
+            />
+          }
+        </div>
+      }
+      <ng-template #footer>
+        @if (item(); as current) {
+          <div class="flex w-full items-center gap-4">
+            @if (showQty()) {
               <app-qty-stepper
                 [qty]="qty()"
                 [min]="1"
+                [addLabel]="i18n.t('cart.increaseQty', { name: i18n.text(current.name) })"
+                [removeLabel]="i18n.t('cart.decreaseQty', { name: i18n.text(current.name) })"
                 (increment)="qty.set(qty() + 1)"
                 (decrement)="qty.set(qty() - 1)"
               />
-            </div>
-          } @else {
-            <span class="text-ink-muted font-bold">×{{ qty() }}</span>
-          }
-          <p-button
-            [label]="i18n.t(confirmLabelKey()) + ' · ' + formatBaht(total())"
-            icon="pi pi-shopping-bag"
-            [rounded]="true"
-            size="large"
-            [disabled]="!valid()"
-            (onClick)="confirm(current)"
-          />
-        </div>
-      }
+            } @else {
+              <span class="text-ink-muted font-bold">×{{ qty() }}</span>
+            }
+            <button
+              type="button"
+              class="bg-accent flex h-14 flex-1 items-center justify-between gap-3 rounded-2xl px-5 text-lg font-bold text-white shadow-[0_12px_28px_-10px_rgb(249_115_22/0.9)] transition active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+              [disabled]="!valid()"
+              (click)="confirm(current)"
+            >
+              <span class="flex items-center gap-2"
+                ><i class="pi pi-shopping-bag" aria-hidden="true"></i
+                >{{ i18n.t(confirmLabelKey()) }}</span
+              >
+              <span class="font-display text-xl tabular-nums">{{ formatBaht(total()) }}</span>
+            </button>
+          </div>
+        }
+      </ng-template>
     </p-dialog>
   `,
 })

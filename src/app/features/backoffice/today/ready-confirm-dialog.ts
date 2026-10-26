@@ -17,7 +17,6 @@ import { SummaryLine } from '../../../shared/utils/order-lines';
       [modal]="true"
       [draggable]="false"
       [closable]="!busy()"
-      [dismissableMask]="!busy()"
       [breakpoints]="{ '640px': '94vw' }"
       [style]="{ width: '34rem' }"
       [showHeader]="false"

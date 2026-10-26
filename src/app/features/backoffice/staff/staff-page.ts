@@ -66,7 +66,7 @@ import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
           [loading]="loading()"
           [lazy]="false"
           [total]="staff().length"
-          [emptyTitle]="'-'"
+          [emptyTitle]="i18n.t('bo.staff.empty')"
         >
           <ng-template #cell let-row let-column="column">
             @switch (column.key) {
@@ -202,6 +202,7 @@ import { TEXT_LIMITS } from '../../../shared/utils/sanitize';
       [draggable]="false"
       [header]="i18n.t('bo.staff.resetPassword')"
       [style]="{ width: '24rem' }"
+      [breakpoints]="{ '640px': '94vw' }"
     >
       <p class="text-ink-muted text-sm">{{ i18n.t('quickRegister.tempPassword') }}</p>
       <p

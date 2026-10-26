@@ -1,11 +1,21 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 
+import { AuthStore } from '../../core/auth/auth.store';
 import { roleGuard } from '../../core/auth/guards';
 
 const adminOnly = [roleGuard('ADMIN')];
 
 export const BACKOFFICE_ROUTES: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'today' },
+  {
+    path: '',
+    pathMatch: 'full',
+    redirectTo: () => (inject(AuthStore).isAdmin() ? 'today' : 'queue-board'),
+  },
+  {
+    path: 'queue-board',
+    loadComponent: () => import('./queue-board/queue-board-page').then((m) => m.QueueBoardPage),
+  },
   {
     path: 'today',
     loadComponent: () => import('./today/today-page').then((m) => m.TodayPage),

@@ -213,7 +213,6 @@ function toDraft(group: OptionGroupResponse): GroupDraft {
       [visible]="selected() !== null"
       (visibleChange)="!$event && close()"
       [modal]="true"
-      [dismissableMask]="true"
       [draggable]="false"
       [resizable]="false"
       [showHeader]="false"

@@ -32,7 +32,7 @@ import { formatBaht } from '../../shared/utils/price';
       @if (!cart.isEmpty()) {
         <button
           type="button"
-          class="text-ink-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+          class="text-ink-muted inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 text-xs font-semibold transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
           (click)="clearCart()"
         >
           <i class="pi pi-trash text-xs"></i>{{ i18n.t('cart.clear') }}
@@ -80,7 +80,7 @@ import { formatBaht } from '../../shared/utils/price';
                 </p>
                 <button
                   type="button"
-                  class="text-ink-muted -mt-1 -mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                  class="text-ink-muted -mt-2 -mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
                   [attr.aria-label]="i18n.t('cart.removeItem', { name: i18n.text(line.item.name) })"
                   (click)="cart.remove(line.key)"
                 >
@@ -98,6 +98,8 @@ import { formatBaht } from '../../shared/utils/price';
                 <app-qty-stepper
                   [qty]="line.qty"
                   size="sm"
+                  [addLabel]="i18n.t('cart.increaseQty', { name: i18n.text(line.item.name) })"
+                  [removeLabel]="i18n.t('cart.decreaseQty', { name: i18n.text(line.item.name) })"
                   (increment)="cart.increment(line.key)"
                   (decrement)="cart.decrement(line.key)"
                 />

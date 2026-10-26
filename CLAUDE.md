@@ -163,3 +163,83 @@
 - Node ปัจจุบัน v24.14.1 จึงใช้ Angular 21 ได้สูงสุด ถ้าจะอัปเป็น Angular 22 ต้องอัป Node เป็น ≥ 24.15 ก่อน แล้วรัน `ng update @angular/core @angular/cli` และอัป `primeng` ให้ตรง major
 - localStorage: `roti.lang`, `roti.theme`, `roti.favorites`, `roti.cart`, `roti.sidebar.profile`, `roti.sidebar.backoffice`, `roti.kitchen.sound`, `roti.login.remembered`, `roti.mock.db` (ฐานข้อมูล mock ทั้งหมด รวม refresh session — ลบ key นี้เพื่อ reset ข้อมูล) — access token เก็บใน memory เท่านั้น
 - `qrcode` เป็น CommonJS จึงเพิ่มไว้ใน `allowedCommonJsDependencies` ของ `angular.json`
+
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## Plugins / Skills ที่ติดตั้งไว้ (ต้องเรียกใช้)
+ผู้ใช้ติดตั้งปลั๊กอิน/สกิลเหล่านี้ไว้แล้ว ให้เรียกใช้ (ผ่าน Skill tool หรือ slash command) ทุกครั้งที่งานตรงกับขอบเขตของสกิลนั้น อย่าทำเองโดยข้ามสกิล:
+- **Caveman** — ตอบสั้น กระชับ ประหยัด token
+- **UI UX Pro Max** — งานออกแบบ/ปรับ UI ทุกครั้ง (แต่ต้องคงดีไซน์ม่วง-ส้มตามหัวข้อ "การตัดสินใจด้านดีไซน์")
+- **Anthropic Skills** — งานเอกสาร/ไฟล์ (docx, pdf, pptx, xlsx) และสกิลมาตรฐานอื่น ๆ
+- **Karpathy Skills** — แนวทางเขียนโค้ด (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven)
+- **Matt Pocock Skills** — งาน TypeScript / type design
+- **Superpowers** — workflow วางแผน → TDD → debug → review ก่อนลงมือเขียนโค้ด
+- **Agent Skills** — สกิลทั่วไปสำหรับงาน engineering
+- **Graphify** — สำรวจ/ทำ graph โครงสร้างโค้ดก่อนแก้ส่วนที่ไม่คุ้นเคย
+- **Ponytail** — เขียนโค้ดเท่าที่จำเป็น (`/ponytail`, `/ponytail-review`, `/ponytail-audit`, `/ponytail-debt`, `/ponytail-gain`, `/ponytail-help`)
+
+ถ้ากฎในสกิลขัดกับกฎของโปรเจกต์ใน CLAUDE.md นี้ (เช่น ห้าม comment, ใช้ i18n, ดีไซน์เดิม) ให้ยึด CLAUDE.md

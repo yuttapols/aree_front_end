@@ -1,0 +1,12 @@
+{
+  "/api": {
+    "target": "https://aree-back-end.onrender.com",
+    "secure": true,
+    "changeOrigin": true
+  },
+  "/files": {
+    "target": "https://aree-back-end.onrender.com",
+    "secure": true,
+    "changeOrigin": true
+  }
+}
